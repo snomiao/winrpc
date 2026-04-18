@@ -1,9 +1,9 @@
 {
-  "name": "win-automation-server",
+  "name": "winrpc",
   "version": "0.1.0",
-  "description": "Generic Windows UI automation HTTP server — AHK v2 eval, PowerShell execution, screenshot, and cross-process UI lock.",
+  "description": "Windows desktop automation RPC server — AHK v2 eval, PowerShell execution, screenshot, and cross-process UI lock.",
   "bin": {
-    "win-automation-server": "./src/index.ts"
+    "winrpc": "./src/index.ts"
   },
   "scripts": {
     "start": "bun src/index.ts",

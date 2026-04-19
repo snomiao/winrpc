@@ -47,8 +47,9 @@ Magic substitution vars (auto-included if present in the directory):
 - [AutoHotkey v2](https://www.autohotkey.com/) installed at `C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe` (or set `AHK_EXE` env)
 
 ```powershell
-git clone https://github.com/snomiao/winrpc
-cd winrpc/tree/main
+# Convention: clone to C:\Users\<user>\ws\winrpc\
+git clone https://github.com/snomiao/winrpc C:\Users\$env:USERNAME\ws\winrpc
+cd C:\Users\$env:USERNAME\ws\winrpc\tree\main
 bun install
 bun src/index.ts
 ```

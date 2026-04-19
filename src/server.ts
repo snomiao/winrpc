@@ -23,6 +23,7 @@ import { runAhk, ahkTemplate } from "./ahk";
 import { runPowerShellInline } from "./powershell";
 import { takeScreenshot } from "./screenshot";
 import { readLockState, forceUnlockUi, acquireUiLock } from "./ui-lock";
+import { checkAuth } from "./auth";
 
 // ── In-process UI serialization queue ────────────────────────────────────────
 // Serializes concurrent requests within this server process. The cross-process
@@ -44,6 +45,12 @@ function withUiQueue<T>(label: string, fn: () => Promise<T>): Promise<T> {
 // ── App ───────────────────────────────────────────────────────────────────────
 export function makeApp() {
   return new Elysia()
+    .onRequest(({ request }) => {
+      // /health is unauthenticated (for uptime checks without token)
+      if (new URL(request.url).pathname === "/health") return;
+      const err = checkAuth(request.headers.get("authorization"));
+      if (err) throw err;
+    })
     .get("/health", () => ({ ok: true, uptime: process.uptime(), pid: process.pid }))
     .get("/version", async () => {
       const rev = await Bun.spawn(["git", "rev-parse", "--short", "HEAD"], { stdout: "pipe" });

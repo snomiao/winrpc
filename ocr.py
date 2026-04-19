@@ -18,9 +18,16 @@ def main():
     import os
     os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
     from paddleocr import PaddleOCR  # lazy import so startup is fast when checking
-    # PaddleOCR 3.x: use_textline_orientation replaces use_angle_cls; show_log removed
-    ocr = PaddleOCR(use_textline_orientation=True, lang=lang)
-    result = ocr.ocr(image_path)
+    import paddleocr as _pocr_mod
+    _ver = tuple(int(x) for x in getattr(_pocr_mod, "__version__", "2.0.0").split(".")[:2])
+    if _ver >= (3, 0):
+        # PaddleOCR 3.x API
+        ocr = PaddleOCR(use_textline_orientation=True, lang=lang, ocr_version="PP-OCRv4")
+        result = ocr.ocr(image_path)
+    else:
+        # PaddleOCR 2.x API
+        ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
+        result = ocr.ocr(image_path, cls=True)
 
     boxes = []
     if result:

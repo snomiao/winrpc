@@ -45,6 +45,11 @@ function withUiQueue<T>(label: string, fn: () => Promise<T>): Promise<T> {
 // ── App ───────────────────────────────────────────────────────────────────────
 export function makeApp() {
   return new Elysia()
+    .onError(({ error }) => {
+      // Return all unhandled errors as JSON so clients can parse consistently.
+      const msg = error instanceof Error ? error.message : String(error);
+      return Response.json({ ok: false, stdout: "", stderr: msg, exitCode: 1 }, { status: 500 });
+    })
     .onRequest(({ request }) => {
       // /health is unauthenticated (for uptime checks without token)
       if (new URL(request.url).pathname === "/health") return;
@@ -70,17 +75,21 @@ export function makeApp() {
     .post("/ahk-eval", async ({ query: { gui }, request }) => {
       const script = await request.text();
       if (!script) return { ok: false, stdout: "", stderr: "Empty script", exitCode: 1 };
-      return withUiQueue("ahk-eval", () => runAhk(script, { gui: gui === "1" || gui === "true" }));
+      try {
+        return await withUiQueue("ahk-eval", () => runAhk(script, { gui: gui === "1" || gui === "true" }));
+      } catch (e: any) {
+        return { ok: false, stdout: "", stderr: e?.message ?? String(e), exitCode: 1 };
+      }
     }, { query: t.Object({ gui: t.Optional(t.String()) }) })
     .post("/run-template", async ({ body }) => {
       try {
         const script = ahkTemplate(body.name, body.vars ?? {});
-        return withUiQueue(
+        return await withUiQueue(
           `run-template:${body.name}`,
           () => runAhk(script, { gui: !!body.gui, timeout: body.timeout }),
         );
       } catch (e: any) {
-        return { ok: false, stdout: "", stderr: `template error: ${e?.message ?? e}`, exitCode: 1 };
+        return { ok: false, stdout: "", stderr: e?.message ?? String(e), exitCode: 1 };
       }
     }, { body: t.Object({
       name: t.String(),
@@ -91,7 +100,11 @@ export function makeApp() {
     .post("/shell", async ({ request }) => {
       const cmd = await request.text();
       if (!cmd) return { ok: false, stdout: "", stderr: "Empty command", exitCode: 1 };
-      return runPowerShellInline(cmd, { timeout: 60_000 });
+      try {
+        return await runPowerShellInline(cmd, { timeout: 60_000 });
+      } catch (e: any) {
+        return { ok: false, stdout: "", stderr: e?.message ?? String(e), exitCode: 1 };
+      }
     })
     .post("/screenshot", async () => {
       try {

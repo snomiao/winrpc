@@ -22,6 +22,7 @@ import { Elysia, t } from "elysia";
 import { runAhk, ahkTemplate } from "./ahk";
 import { runPowerShellInline } from "./powershell";
 import { takeScreenshot } from "./screenshot";
+import { runOcr } from "./ocr";
 import { readLockState, forceUnlockUi, acquireUiLock } from "./ui-lock";
 import { checkAuth } from "./auth";
 
@@ -119,5 +120,26 @@ export function makeApp() {
       console.log("[redeploy] exiting in 200ms — supervisor will restart");
       setTimeout(() => process.exit(2), 200);
       return { ok: true, message: "exiting in 200ms" };
-    });
+    })
+    .post("/ocr", async ({ query: { lang }, request }) => {
+      // Body: raw PNG/JPEG bytes  OR  JSON {path: "C:\\..."}
+      const contentType = request.headers.get("content-type") ?? "";
+      let imagePath: string;
+      if (contentType.includes("application/json")) {
+        const body = await request.json() as { path?: string };
+        if (!body.path) return Response.json({ ok: false, error: "missing path" }, { status: 400 });
+        imagePath = body.path;
+      } else {
+        // Save uploaded image bytes to a temp file
+        const buf = await request.arrayBuffer();
+        imagePath = `C:\\tmp\\ocr-input-${Date.now()}.png`;
+        await Bun.write(imagePath, buf);
+      }
+      try {
+        const result = await runOcr(imagePath, lang ?? "ch");
+        return result;
+      } catch (e: any) {
+        return Response.json({ ok: false, error: e?.message ?? String(e) }, { status: 500 });
+      }
+    }, { query: t.Object({ lang: t.Optional(t.String()) }) });
 }

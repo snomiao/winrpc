@@ -50,6 +50,10 @@ export async function runOcr(imagePath: string, lang = "ch"): Promise<OcrResult>
     stdout: "pipe",
     stderr: "pipe",
     cwd: SCRIPT_DIR,
+    env: {
+      ...process.env,
+      PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "True",
+    },
   });
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),

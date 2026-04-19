@@ -15,9 +15,12 @@ def main():
     image_path = sys.argv[1]
     lang = sys.argv[2] if len(sys.argv) > 2 else "ch"
 
+    import os
+    os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
     from paddleocr import PaddleOCR  # lazy import so startup is fast when checking
-    ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
-    result = ocr.ocr(image_path, cls=True)
+    # PaddleOCR 3.x: use_textline_orientation replaces use_angle_cls; show_log removed
+    ocr = PaddleOCR(use_textline_orientation=True, lang=lang)
+    result = ocr.ocr(image_path)
 
     boxes = []
     if result:

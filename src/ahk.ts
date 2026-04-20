@@ -86,14 +86,35 @@ export async function runAhk(
   script: string,
   opts: { timeout?: number; gui?: boolean } = {},
 ): Promise<{ ok: boolean; stdout: string; stderr: string; exitCode: number }> {
-  if (!IS_WIN) throw new Error("runAhk requires Windows");
+  const winrpcUrl = process.env.WINRPC_URL;
+  if (winrpcUrl) {
+    const timeout = opts.timeout ?? 30_000;
+    const url = `${winrpcUrl.replace(/\/$/, "")}/ahk-eval`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: script,
+        signal: controller.signal,
+      });
+      return await res.json() as { ok: boolean; stdout: string; stderr: string; exitCode: number };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  if (!IS_WIN) throw new Error("runAhk requires Windows (or set WINRPC_URL for remote)");
   const timeout = opts.timeout ?? 30_000;
   const tmpDir = "C:\\tmp";
   mkdirSync(tmpDir, { recursive: true });
   const scriptPath = `${tmpDir}\\ahk-eval-${Date.now()}-${Math.random().toString(36).slice(2)}.ahk`;
   writeFileSync(scriptPath, script, "utf-8");
 
-  const args = opts.gui ? [AHK_EXE, scriptPath] : [AHK_EXE, "/CP65001", scriptPath];
+  // /ErrorStdOut sends compile errors to stderr instead of a GUI dialog
+  const args = opts.gui
+    ? [AHK_EXE, "/ErrorStdOut", scriptPath]
+    : [AHK_EXE, "/CP65001", "/ErrorStdOut", scriptPath];
   const proc = Bun.spawn(args, { stdout: "pipe", stderr: "pipe" });
   const timer = setTimeout(() => proc.kill(), timeout);
   const [stdout, stderr, exitCode] = await Promise.all([

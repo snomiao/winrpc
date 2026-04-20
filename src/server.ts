@@ -73,15 +73,17 @@ export function makeApp() {
       const prev = forceUnlockUi();
       return { ok: true, released: prev ?? null };
     })
-    .post("/ahk-eval", async ({ query: { gui }, request }) => {
+    .post("/ahk-eval", async ({ query: { gui, readonly }, request }) => {
       const script = await request.text();
       if (!script) return { ok: false, stdout: "", stderr: "Empty script", exitCode: 1 };
+      const run = () => runAhk(script, { gui: gui === "1" || gui === "true" });
+      // read-only probes (uia-pwd, uia-chats-sidebar) bypass the UI lock
       try {
-        return await withUiQueue("ahk-eval", () => runAhk(script, { gui: gui === "1" || gui === "true" }));
+        return await (readonly === "1" ? run() : withUiQueue("ahk-eval", run));
       } catch (e: any) {
         return { ok: false, stdout: "", stderr: e?.message ?? String(e), exitCode: 1 };
       }
-    }, { query: t.Object({ gui: t.Optional(t.String()) }) })
+    }, { query: t.Object({ gui: t.Optional(t.String()), readonly: t.Optional(t.String()) }) })
     .post("/run-template", async ({ body }) => {
       try {
         const script = ahkTemplate(body.name, body.vars ?? {});

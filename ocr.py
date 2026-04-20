@@ -46,7 +46,11 @@ def main():
                     "y2": int(bbox[2][1]),
                 })
 
-    print(json.dumps(boxes, ensure_ascii=False), flush=True)
+    # Write UTF-8 bytes directly to avoid Windows CP1252 console encoding issues
+    out = json.dumps(boxes, ensure_ascii=False)
+    sys.stdout.buffer.write(out.encode("utf-8"))
+    sys.stdout.buffer.write(b"\n")
+    sys.stdout.buffer.flush()
 
 if __name__ == "__main__":
     main()

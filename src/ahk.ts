@@ -54,7 +54,7 @@ function loadTemplate(dir: string, name: string): string {
 
 // AHK v2 (2.0.14+) enables #Warn VarUnset by default. _PrintErr is called in
 // many templates but never formally defined — add a stub so AHK doesn't pause.
-const _AHK_PREAMBLE = `_PrintErr(msg) { FileAppend msg, "**" }\n`;
+const _AHK_PREAMBLE = `_PrintErr(msg) {\n  FileAppend msg, "**"\n}\n`;
 
 export function ahkTemplate(name: string, vars: Record<string, string> = {}): string {
   const dir = getTemplateDir();

@@ -52,6 +52,10 @@ function loadTemplate(dir: string, name: string): string {
   return text;
 }
 
+// AHK v2 (2.0.14+) enables #Warn VarUnset by default. _PrintErr is called in
+// many templates but never formally defined — add a stub so AHK doesn't pause.
+const _AHK_PREAMBLE = `_PrintErr(msg) { FileAppend msg, "**" }\n`;
+
 export function ahkTemplate(name: string, vars: Record<string, string> = {}): string {
   const dir = getTemplateDir();
   // Pre-load builtins so substitution order is predictable.
@@ -60,7 +64,7 @@ export function ahkTemplate(name: string, vars: Record<string, string> = {}): st
     try { loadTemplate(dir, b); } catch { /* optional — only substitute if present */ }
   }
 
-  let tpl = loadTemplate(dir, name);
+  let tpl = _AHK_PREAMBLE + loadTemplate(dir, name);
   // Longer-prefix variants first (they contain {{FIND_WECHAT}} as substring).
   if (_tplCache.has("find-wechat-readonly")) tpl = tpl.replaceAll("{{FIND_WECHAT_READONLY}}", _tplCache.get("find-wechat-readonly")!);
   if (_tplCache.has("find-wechat-passive"))  tpl = tpl.replaceAll("{{FIND_WECHAT_PASSIVE}}",  _tplCache.get("find-wechat-passive")!);

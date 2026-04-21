@@ -89,6 +89,11 @@ export async function runAhk(
   script: string,
   opts: { timeout?: number; gui?: boolean } = {},
 ): Promise<{ ok: boolean; stdout: string; stderr: string; exitCode: number }> {
+  // Single source of truth for the AHK preamble (_Print/_PrintErr stubs +
+  // OnError dialog-suppression). Clients send raw scripts; we always make
+  // sure the preamble is present. Idempotent — pre-rendered templates that
+  // already include it skip this branch.
+  if (!script.includes("_PrintErr(msg)")) script = _AHK_PREAMBLE + script;
   const winrpcUrl = process.env.WINRPC_URL;
   if (winrpcUrl) {
     const timeout = opts.timeout ?? 30_000;

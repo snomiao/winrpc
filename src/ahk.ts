@@ -61,6 +61,9 @@ const _AHK_PREAMBLE = [
   `_Print(msg) {`,
   `  FileAppend msg, "*"`,
   `}`,
+  // Route runtime errors (thrown Error objects) to stderr and exit instead
+  // of showing a modal dialog that would deadlock the UI queue.
+  `OnError((e, mode) => (FileAppend("ERROR: " e.Message "\`n" (e.HasProp("Stack") ? e.Stack : "") "\`n", "**"), ExitApp(1), -1))`,
   ``,
 ].join("\n");
 

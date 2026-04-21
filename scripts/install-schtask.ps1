@@ -22,10 +22,15 @@ if (-not (Test-Path $loopScript)) {
     throw "serve-loop.ps1 not found at $loopScript"
 }
 
+# Workgroup hosts report USERDOMAIN=WORKGROUP, which is not a resolvable
+# security principal. Fall back to COMPUTERNAME for non-domain-joined hosts.
+$domain = if ($env:USERDOMAIN -and $env:USERDOMAIN -ne "WORKGROUP") { $env:USERDOMAIN } else { $env:COMPUTERNAME }
+$userId = "$domain\$env:USERNAME"
+
 $action    = New-ScheduledTaskAction -Execute "powershell.exe" `
                 -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$loopScript`""
-$trigger   = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
-$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" `
+$trigger   = New-ScheduledTaskTrigger -AtLogOn -User $userId
+$principal = New-ScheduledTaskPrincipal -UserId $userId `
                 -LogonType Interactive -RunLevel Highest
 $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries `
                 -DontStopIfGoingOnBatteries -StartWhenAvailable `

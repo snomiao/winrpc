@@ -42,13 +42,24 @@ while ($true) {
     $startRev = (git rev-parse HEAD).Trim()
     Log "Starting winrpc rev=$($startRev.Substring(0,8)) port=$port AHK_TEMPLATES_DIR=$($env:AHK_TEMPLATES_DIR)"
 
+    # Per-run log files: Start-Process -RedirectStandardOutput truncates on
+    # open, so reusing one path wipes the previous run's crash output. Use
+    # unique names and prune old ones so the next supervisor iteration can
+    # diagnose crashes instead of losing them.
+    $runStamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $outLog = "C:\tmp\winrpc-serve-$runStamp.log"
+    $errLog = "C:\tmp\winrpc-serve-$runStamp.err.log"
     $env:PORT = $port
     $p = Start-Process -FilePath $bun `
         -ArgumentList "src/index.ts" `
         -WorkingDirectory $winrpcDir -PassThru -NoNewWindow `
-        -RedirectStandardOutput "C:\tmp\winrpc-serve.log" `
-        -RedirectStandardError  "C:\tmp\winrpc-serve-err.log"
-    Log "winrpc PID: $($p.Id)"
+        -RedirectStandardOutput $outLog `
+        -RedirectStandardError  $errLog
+    Log "winrpc PID: $($p.Id) out=$outLog err=$errLog"
+    # Keep only the 10 most-recent per-run logs.
+    Get-ChildItem "C:\tmp\winrpc-serve-*.log" -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -Skip 20 |
+        Remove-Item -Force -ErrorAction SilentlyContinue
 
     $upstreamChanged = $false
     while (!$p.HasExited) {
@@ -68,5 +79,15 @@ while ($true) {
     try { $p.WaitForExit() } catch {}
     $exitCode = $p.ExitCode
     Log "winrpc exited (code=$exitCode, upstreamChanged=$upstreamChanged), restarting in 2s"
+    # Inline the last 20 lines of stderr/stdout into the supervisor log so
+    # crashes are visible without hunting for the per-run file.
+    if (Test-Path $errLog) {
+        $tail = Get-Content $errLog -Tail 20 -ErrorAction SilentlyContinue
+        if ($tail) { Log "--- stderr tail ---"; $tail | ForEach-Object { Log "  $_" } }
+    }
+    if ((-not $exitCode -or $exitCode -ne 0) -and (Test-Path $outLog)) {
+        $tail = Get-Content $outLog -Tail 10 -ErrorAction SilentlyContinue
+        if ($tail) { Log "--- stdout tail ---"; $tail | ForEach-Object { Log "  $_" } }
+    }
     Start-Sleep 2
 }

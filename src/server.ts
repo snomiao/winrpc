@@ -47,7 +47,9 @@ function withUiQueue<T>(label: string, fn: () => Promise<T>): Promise<T> {
 export function makeApp() {
   return new Elysia()
     .onError(({ error }) => {
-      // Return all unhandled errors as JSON so clients can parse consistently.
+      // Let Response errors (e.g. 401 from auth) pass through unchanged.
+      if (error instanceof Response) return error;
+      // Return all other unhandled errors as JSON so clients can parse consistently.
       const msg = error instanceof Error ? error.message : String(error);
       return Response.json({ ok: false, stdout: "", stderr: msg, exitCode: 1 }, { status: 500 });
     })

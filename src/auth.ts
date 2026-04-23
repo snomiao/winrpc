@@ -1,9 +1,9 @@
 /**
- * First-run token generation and Basic-auth middleware.
+ * Token-based Basic/Bearer auth.
  *
- * On first start, generates a random 32-byte hex token, saves it to
- * <cwd>/.winrpc.token (gitignored). On subsequent starts, loads the
- * existing token.
+ * Reads WINRPC_TOKEN from the environment (Bun auto-loads .env.local).
+ * On first start — when WINRPC_TOKEN is unset — generates a 32-byte hex
+ * token and appends it to ./.env.local so subsequent starts reuse it.
  *
  * Clients embed the token as HTTP Basic Auth username:
  *   WINRPC_URL=http://<token>@host:port
@@ -13,19 +13,25 @@
  *   Authorization: Bearer <token>            (alternative)
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import { existsSync, readFileSync, appendFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
 
-const TOKEN_FILE = join(process.cwd(), ".winrpc.token");
+const ENV_FILE = join(process.cwd(), ".env.local");
 
 function loadOrCreateToken(): string {
-  if (existsSync(TOKEN_FILE)) {
-    const t = readFileSync(TOKEN_FILE, "utf-8").trim();
-    if (t.length >= 16) return t;
-  }
+  const existing = process.env.WINRPC_TOKEN?.trim();
+  if (existing && existing.length >= 16) return existing;
+
   const token = randomBytes(32).toString("hex");
-  writeFileSync(TOKEN_FILE, token + "\n", { encoding: "utf-8", mode: 0o600 });
+  const line = `WINRPC_TOKEN=${token}\n`;
+  if (existsSync(ENV_FILE)) {
+    const cur = readFileSync(ENV_FILE, "utf-8");
+    appendFileSync(ENV_FILE, (cur.endsWith("\n") || cur === "" ? "" : "\n") + line);
+  } else {
+    writeFileSync(ENV_FILE, line, { encoding: "utf-8", mode: 0o600 });
+  }
+  process.env.WINRPC_TOKEN = token;
   return token;
 }
 
@@ -60,7 +66,7 @@ export function printTokenBanner(host: string, port: number) {
   const url = `http://${TOKEN}@${host === "0.0.0.0" ? "localhost" : host}:${port}`;
   console.log("");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("  winrpc access token (saved to .winrpc.token)");
+  console.log("  winrpc access token (WINRPC_TOKEN in ./.env.local)");
   console.log("");
   console.log(`  WINRPC_URL=${url}`);
   console.log("");

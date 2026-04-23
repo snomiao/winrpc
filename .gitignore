@@ -1,5 +1,4 @@
 node_modules/
-.winrpc.token
 bun.lockb
 .env
 .env.local

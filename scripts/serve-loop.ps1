@@ -39,6 +39,19 @@ while ($true) {
         Log "Installing winrpc dependencies"
         & $bun install 2>&1 | Tee-Object -FilePath $logFile -Append
     }
+    # Ensure AutoHotkey v2 is present: the `winrpc ahk` subcommand shells out to
+    # AutoHotkey64.exe for trusted desktop input (clicks/keys/scroll) that the
+    # logged-on interactive session needs and that CDP/SendKeys cannot reliably
+    # drive. Idempotent: only installs when missing, so a no-op on every later
+    # loop. Self-propagates to existing hosts on the next origin/main poll.
+    $ahkExe = if ($env:AHK_EXE) { $env:AHK_EXE } else { "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" }
+    if (-not (Test-Path $ahkExe)) {
+        Log "AutoHotkey v2 not found at $ahkExe - installing via winget"
+        try {
+            winget install --id AutoHotkey.AutoHotkey -e --silent --accept-package-agreements --accept-source-agreements --disable-interactivity 2>&1 | Tee-Object -FilePath $logFile -Append
+        } catch { Log "AutoHotkey install failed: $_" }
+        if (Test-Path $ahkExe) { Log "AutoHotkey installed: $ahkExe" } else { Log "AutoHotkey still missing after winget (is winget available?)" }
+    }
     $startRev = (git rev-parse HEAD).Trim()
     Log "Starting winrpc rev=$($startRev.Substring(0,8)) port=$port AHK_TEMPLATES_DIR=$($env:AHK_TEMPLATES_DIR)"
 

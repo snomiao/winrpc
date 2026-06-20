@@ -111,13 +111,14 @@ export function makeApp() {
         return { ok: false, stdout: "", stderr: e?.message ?? String(e), exitCode: 1 };
       }
     })
-    .post("/screenshot", async ({ query: { window, process: proc, foreground, crop } }) => {
+    .post("/screenshot", async ({ query: { window, process: proc, foreground, crop, maxw } }) => {
       try {
         const opts = {
           window,
           process: proc,
           foreground: foreground === undefined ? undefined : !(foreground === "0" || foreground === "false"),
           crop,
+          maxWidth: maxw ? parseInt(maxw, 10) : undefined,
         };
         // Targeting a window changes focus/foreground → serialize through the UI lock.
         const capture = () => takeScreenshot(opts);
@@ -132,6 +133,7 @@ export function makeApp() {
       process: t.Optional(t.String()),
       foreground: t.Optional(t.String()),
       crop: t.Optional(t.String()),
+      maxw: t.Optional(t.String()),
     }) })
     .post("/redeploy", () => {
       console.log("[redeploy] exiting in 200ms — supervisor will restart");

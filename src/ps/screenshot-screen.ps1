@@ -4,7 +4,8 @@
 # fractions of the screen size; otherwise they are pixels. Origin = top-left.
 param(
     [Parameter(Mandatory = $true)][string]$Dest,
-    [string]$Crop = ""
+    [string]$Crop = "",
+    [int]$MaxWidth = 0
 )
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -30,6 +31,15 @@ if ($Crop -ne "") {
 $bmp = New-Object System.Drawing.Bitmap($capW, $capH)
 $g = [System.Drawing.Graphics]::FromImage($bmp)
 $g.CopyFromScreen($capX, $capY, 0, 0, (New-Object System.Drawing.Size($capW, $capH)))
+if ($MaxWidth -gt 0 -and $bmp.Width -gt $MaxWidth) {
+    $nw = $MaxWidth; $nh = [int]($bmp.Height * $MaxWidth / $bmp.Width)
+    $scaled = New-Object System.Drawing.Bitmap($nw, $nh)
+    $sg = [System.Drawing.Graphics]::FromImage($scaled)
+    $sg.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $sg.DrawImage($bmp, 0, 0, $nw, $nh)
+    $sg.Dispose(); $g.Dispose(); $bmp.Dispose(); $bmp = $scaled
+} else { $g.Dispose() }
+$fw = $bmp.Width; $fh = $bmp.Height
 $bmp.Save($Dest)
-$g.Dispose(); $bmp.Dispose()
-Write-Host "screenshot-ok:$Dest size=$($capW)x$($capH)"
+$bmp.Dispose()
+Write-Host "screenshot-ok:$Dest size=$($fw)x$($fh)"

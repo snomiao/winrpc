@@ -15,6 +15,8 @@ export interface ScreenshotOptions {
   foreground?: boolean;
   /** Crop to a rectangle "x,y,w,h" relative to the captured area. Values <= 1 are fractions of the screen/window size; otherwise pixels. */
   crop?: string;
+  /** Downscale the result to at most this width (px), preserving aspect ratio. 0/undefined = no scaling. */
+  maxWidth?: number;
 }
 
 /**
@@ -37,10 +39,12 @@ export async function takeScreenshot(opts: ScreenshotOptions = {}): Promise<stri
     if (opts.window) args.push("-TitleMatch", opts.window);
     if (opts.foreground !== false) args.push("-Foreground"); // default true for window capture
     if (opts.crop) args.push("-Crop", opts.crop);
+    if (opts.maxWidth) args.push("-MaxWidth", String(opts.maxWidth));
     r = await runPowerShellFile(join(PS_DIR, "screenshot-window.ps1"), args, { timeout: 45_000 });
   } else {
     const args = ["-Dest", dest];
     if (opts.crop) args.push("-Crop", opts.crop);
+    if (opts.maxWidth) args.push("-MaxWidth", String(opts.maxWidth));
     r = await runPowerShellFile(join(PS_DIR, "screenshot-screen.ps1"), args, { timeout: 45_000 });
   }
 

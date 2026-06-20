@@ -13,7 +13,10 @@ param(
     [Parameter(Mandatory = $true)][string]$Dest,
     [string]$ProcName = "",
     [string]$TitleMatch = "",
-    [switch]$Foreground
+    [switch]$Foreground,
+    # -Crop "x,y,w,h" restricts capture to a rectangle relative to the window's
+    # top-left. Values <= 1 are fractions of the window size; otherwise pixels.
+    [string]$Crop = ""
 )
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -77,9 +80,23 @@ if ($dwm -ne 0) { [WinShot]::GetWindowRect($h, [ref]$r) | Out-Null }
 $w = $r.Right - $r.Left; $ht = $r.Bottom - $r.Top
 if ($w -le 0 -or $ht -le 0) { Write-Host "screenshot-err:bad-bounds"; exit 1 }
 
-$bmp = New-Object System.Drawing.Bitmap($w, $ht)
+$capX = $r.Left; $capY = $r.Top; $capW = $w; $capH = $ht
+if ($Crop -ne "") {
+    $p = $Crop.Split(",")
+    if ($p.Count -ne 4) { Write-Host "screenshot-err:bad-crop"; exit 1 }
+    $cx = [double]$p[0]; $cy = [double]$p[1]; $cw = [double]$p[2]; $ch = [double]$p[3]
+    if ($cx -le 1 -and $cy -le 1 -and $cw -le 1 -and $ch -le 1) {
+        $cx = $cx * $w; $cy = $cy * $ht; $cw = $cw * $w; $ch = $ch * $ht
+    }
+    $cx = [int][Math]::Max(0, $cx); $cy = [int][Math]::Max(0, $cy)
+    $cw = [int][Math]::Min($cw, $w - $cx); $ch = [int][Math]::Min($ch, $ht - $cy)
+    if ($cw -le 0 -or $ch -le 0) { Write-Host "screenshot-err:bad-crop"; exit 1 }
+    $capX = $r.Left + $cx; $capY = $r.Top + $cy; $capW = $cw; $capH = $ch
+}
+
+$bmp = New-Object System.Drawing.Bitmap($capW, $capH)
 $g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.CopyFromScreen($r.Left, $r.Top, 0, 0, (New-Object System.Drawing.Size($w, $ht)))
+$g.CopyFromScreen($capX, $capY, 0, 0, (New-Object System.Drawing.Size($capW, $capH)))
 $bmp.Save($Dest)
 $g.Dispose(); $bmp.Dispose()
-Write-Host "screenshot-ok:$Dest title=$([WinShot]::LastTitle) size=$($w)x$($ht)"
+Write-Host "screenshot-ok:$Dest title=$([WinShot]::LastTitle) size=$($capW)x$($capH)"

@@ -37,11 +37,11 @@ export async function takeScreenshot(opts: ScreenshotOptions = {}): Promise<stri
     if (opts.window) args.push("-TitleMatch", opts.window);
     if (opts.foreground !== false) args.push("-Foreground"); // default true for window capture
     if (opts.crop) args.push("-Crop", opts.crop);
-    r = await runPowerShellFile(join(PS_DIR, "screenshot-window.ps1"), args, { timeout: 20_000 });
+    r = await runPowerShellFile(join(PS_DIR, "screenshot-window.ps1"), args, { timeout: 45_000 });
   } else {
     const args = ["-Dest", dest];
     if (opts.crop) args.push("-Crop", opts.crop);
-    r = await runPowerShellFile(join(PS_DIR, "screenshot-screen.ps1"), args, { timeout: 20_000 });
+    r = await runPowerShellFile(join(PS_DIR, "screenshot-screen.ps1"), args, { timeout: 45_000 });
   }
 
   if (!r.ok || !r.stdout.includes("screenshot-ok")) {

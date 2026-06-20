@@ -24,6 +24,27 @@ export async function runPowerShell(
   return { ok: exitCode === 0, stdout, stderr, exitCode };
 }
 
+/** Run an existing .ps1 file via -File, passing named args (argv, no shell). */
+export async function runPowerShellFile(
+  scriptPath: string,
+  args: string[] = [],
+  opts: { timeout?: number } = {},
+): Promise<{ ok: boolean; stdout: string; stderr: string; exitCode: number }> {
+  const timeout = opts.timeout ?? 60_000;
+  const proc = Bun.spawn(
+    ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath, ...args],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+  const timer = setTimeout(() => proc.kill(), timeout);
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  clearTimeout(timer);
+  return { ok: exitCode === 0, stdout, stderr, exitCode };
+}
+
 /** Run an inline PowerShell one-liner (no temp file). 60s timeout. */
 export async function runPowerShellInline(
   cmd: string,

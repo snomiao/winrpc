@@ -11,7 +11,7 @@ Windows desktop automation RPC server. Exposes AHK v2 script execution, PowerShe
 | `POST` | `/ahk-eval` | Execute AHK v2 script (body = script text; `?gui=1` for GUI mode) |
 | `POST` | `/run-template` | Execute named AHK template (`{name, vars?, gui?, timeout?}`) |
 | `POST` | `/shell` | Execute PowerShell inline (body = command text, 60s timeout) |
-| `POST` | `/screenshot` | Take desktop screenshot, return PNG bytes |
+| `POST` | `/screenshot` | Screenshot → PNG bytes. Full screen, or a window via `?window=<title>` / `?process=<name>` (`&foreground=0` to skip focus) |
 | `GET` | `/lock` | Current cross-process UI lock state |
 | `POST` | `/lock/force-unlock` | Admin: force-release the UI lock |
 | `POST` | `/redeploy` | exit(2) so supervisor restarts with latest code |

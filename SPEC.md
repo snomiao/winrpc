@@ -89,8 +89,23 @@ Returns `{ ok, stdout, stderr, exitCode }`.
 
 ### `POST /screenshot`
 
-Capture a full-desktop PNG. Returns `image/png` bytes with
-`X-Screenshot-Path` header pointing at the on-disk temp file.
+Capture a PNG. Returns `image/png` bytes with `X-Screenshot-Path` header
+pointing at the on-disk temp file.
+
+Query (all optional):
+
+- `window` — capture only the window whose title contains this substring
+  (case-insensitive).
+- `process` — capture only the window owned by a process of this name
+  (e.g. `OxygenNotIncluded`).
+- `foreground` — `0`/`false` to skip bringing the target window to the
+  foreground (default: brings it forward and restores if minimized).
+
+With no `window`/`process`, captures the full primary screen. Window capture
+uses `CopyFromScreen` over the window's DWM extended-frame bounds (works for
+GPU-rendered apps/games where `PrintWindow` returns black), so the window must
+be visible/unoccluded — hence the default foreground bring-up. Window captures
+are serialized through the UI lock (they change focus).
 
 ### `POST /ocr`
 

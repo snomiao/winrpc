@@ -111,15 +111,26 @@ export function makeApp() {
         return { ok: false, stdout: "", stderr: e?.message ?? String(e), exitCode: 1 };
       }
     })
-    .post("/screenshot", async () => {
+    .post("/screenshot", async ({ query: { window, process: proc, foreground } }) => {
       try {
-        const pngPath = await takeScreenshot();
+        const opts = {
+          window,
+          process: proc,
+          foreground: foreground === undefined ? undefined : !(foreground === "0" || foreground === "false"),
+        };
+        // Targeting a window changes focus/foreground → serialize through the UI lock.
+        const capture = () => takeScreenshot(opts);
+        const pngPath = (window || proc) ? await withUiQueue("screenshot", capture) : await capture();
         const buf = await Bun.file(pngPath).arrayBuffer();
         return new Response(buf, { headers: { "Content-Type": "image/png", "X-Screenshot-Path": pngPath } });
       } catch (e) {
         return new Response(String(e), { status: 500 });
       }
-    })
+    }, { query: t.Object({
+      window: t.Optional(t.String()),
+      process: t.Optional(t.String()),
+      foreground: t.Optional(t.String()),
+    }) })
     .post("/redeploy", () => {
       console.log("[redeploy] exiting in 200ms — supervisor will restart");
       setTimeout(() => process.exit(2), 200);

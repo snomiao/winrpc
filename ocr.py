@@ -21,8 +21,14 @@ def main():
     import paddleocr as _pocr_mod
     _ver = tuple(int(x) for x in getattr(_pocr_mod, "__version__", "2.0.0").split(".")[:2])
     if _ver >= (3, 0):
-        # PaddleOCR 3.x API
-        ocr = PaddleOCR(use_textline_orientation=True, lang=lang, ocr_version="PP-OCRv4")
+        # PaddleOCR 3.x API. Disable oneDNN/MKLDNN: paddle 3.3.1's PIR executor
+        # raises "ConvertPirAttribute2RuntimeAttribute not support" in the
+        # oneDNN path on this CPU build. Fall back if the kwarg is unsupported.
+        try:
+            ocr = PaddleOCR(use_textline_orientation=True, lang=lang,
+                            ocr_version="PP-OCRv4", enable_mkldnn=False)
+        except TypeError:
+            ocr = PaddleOCR(use_textline_orientation=True, lang=lang, ocr_version="PP-OCRv4")
         result = ocr.ocr(image_path)
     else:
         # PaddleOCR 2.x API

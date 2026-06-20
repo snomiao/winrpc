@@ -119,10 +119,9 @@ export async function runAhk(
   const scriptPath = `${tmpDir}\\ahk-eval-${Date.now()}-${Math.random().toString(36).slice(2)}.ahk`;
   writeFileSync(scriptPath, script, "utf-8");
 
-  // /ErrorStdOut sends compile errors to stderr instead of a GUI dialog
-  const args = opts.gui
-    ? [AHK_EXE, "/ErrorStdOut", scriptPath]
-    : [AHK_EXE, "/CP65001", "/ErrorStdOut", scriptPath];
+  // /ErrorStdOut sends compile errors to stderr instead of a GUI dialog.
+  // /CP65001 is only valid for AHK v1; AHK v2 shows a modal error dialog for it.
+  const args = [AHK_EXE, "/ErrorStdOut", scriptPath];
   const proc = Bun.spawn(args, { stdout: "pipe", stderr: "pipe" });
   const timer = setTimeout(() => proc.kill(), timeout);
   const [stdout, stderr, exitCode] = await Promise.all([

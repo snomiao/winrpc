@@ -17,6 +17,16 @@ import os
 def build_ocr(lang):
     """Load PaddleOCR once. Returns (ocr, major_version)."""
     os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+    # Shared GPU (the game + desktop already use most of an 8 GB card): paddle
+    # otherwise pre-grabs ~92% of GPU memory at init and OOMs. auto_growth makes
+    # it allocate only what the (small) OCR models need.
+    os.environ.setdefault("FLAGS_allocator_strategy", "auto_growth")
+    os.environ.setdefault("FLAGS_fraction_of_gpu_memory_to_use", "0")
+    # OCR_DEVICE=cpu forces CPU even when a GPU build is installed (fallback when
+    # VRAM is exhausted). Default: let paddle pick (GPU if available).
+    _device = os.environ.get("OCR_DEVICE", "").strip().lower()
+    if _device == "cpu":
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
     from paddleocr import PaddleOCR
     import paddleocr as _pocr_mod
     ver = tuple(int(x) for x in getattr(_pocr_mod, "__version__", "2.0.0").split(".")[:2])

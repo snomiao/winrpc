@@ -1,39 +1,43 @@
 #!/usr/bin/env python3
-"""PaddleOCR runner — called by winrpc /ocr endpoint.
+"""PaddleOCR runner — called by winrpc /ocr and /ocr-stream.
 
-Usage: python ocr.py <image_path> [lang=ch]
-Output: JSON array of {text, confidence, x1, y1, x2, y2}
+Usage:
+  python ocr.py <image_path> [lang=ch]   one-shot: print one JSON array, exit
+  python ocr.py --serve [lang=ch]        warm worker: keep model loaded, read
+                                          one image path per stdin line, print
+                                          one JSON array per line (flushed)
+
+Output box shape: {text, confidence, x1, y1, x2, y2} (pixel coords, no rotation).
 """
 import sys
 import json
+import os
 
-def main():
-    if len(sys.argv) < 2:
-        print(json.dumps([]), flush=True)
-        return
 
-    image_path = sys.argv[1]
-    lang = sys.argv[2] if len(sys.argv) > 2 else "ch"
-
-    import os
+def build_ocr(lang):
+    """Load PaddleOCR once. Returns (ocr, major_version)."""
     os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
-    from paddleocr import PaddleOCR  # lazy import so startup is fast when checking
+    from paddleocr import PaddleOCR
     import paddleocr as _pocr_mod
-    _ver = tuple(int(x) for x in getattr(_pocr_mod, "__version__", "2.0.0").split(".")[:2])
-    boxes = []
-    if _ver >= (3, 0):
-        # PaddleOCR 3.x API. Disable oneDNN/MKLDNN: paddle 3.3.1's PIR executor
-        # raises "ConvertPirAttribute2RuntimeAttribute not support" in the
+    ver = tuple(int(x) for x in getattr(_pocr_mod, "__version__", "2.0.0").split(".")[:2])
+    if ver >= (3, 0):
+        # Disable oneDNN/MKLDNN: paddle 3.3.1's PIR executor crashes in the
         # oneDNN path on this CPU build. Fall back if the kwarg is unsupported.
         try:
             ocr = PaddleOCR(use_textline_orientation=True, lang=lang,
                             ocr_version="PP-OCRv4", enable_mkldnn=False)
         except TypeError:
             ocr = PaddleOCR(use_textline_orientation=True, lang=lang, ocr_version="PP-OCRv4")
-        result = ocr.predict(image_path)
-        # 3.x returns a list of OCRResult (dict-like) per image, with parallel
-        # lists rec_texts / rec_scores / rec_polys (4-point polygons).
-        for res in result:
+    else:
+        ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
+    return ocr, ver
+
+
+def recognize(ocr, ver, image_path):
+    """Run OCR on one image, return a list of box dicts."""
+    boxes = []
+    if ver >= (3, 0):
+        for res in ocr.predict(image_path):
             texts = res["rec_texts"]
             scores = res["rec_scores"]
             polys = res.get("rec_polys")
@@ -43,35 +47,56 @@ def main():
                 xs = [int(pt[0]) for pt in poly]
                 ys = [int(pt[1]) for pt in poly]
                 boxes.append({
-                    "text": text,
-                    "confidence": round(float(conf), 4),
-                    "x1": min(xs), "y1": min(ys),
-                    "x2": max(xs), "y2": max(ys),
+                    "text": text, "confidence": round(float(conf), 4),
+                    "x1": min(xs), "y1": min(ys), "x2": max(xs), "y2": max(ys),
                 })
     else:
-        # PaddleOCR 2.x API: [[ [bbox], (text, conf) ], ...] per page.
-        ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
-        result = ocr.ocr(image_path, cls=True)
-        for page in (result or []):
+        for page in (ocr.ocr(image_path, cls=True) or []):
             if not page:
                 continue
             for item in page:
-                bbox = item[0]   # [[x1,y1],[x2,y1],[x2,y2],[x1,y2]]
+                bbox = item[0]
                 text, conf = item[1]
                 boxes.append({
-                    "text": text,
-                    "confidence": round(float(conf), 4),
-                    "x1": int(bbox[0][0]),
-                    "y1": int(bbox[0][1]),
-                    "x2": int(bbox[2][0]),
-                    "y2": int(bbox[2][1]),
+                    "text": text, "confidence": round(float(conf), 4),
+                    "x1": int(bbox[0][0]), "y1": int(bbox[0][1]),
+                    "x2": int(bbox[2][0]), "y2": int(bbox[2][1]),
                 })
+    return boxes
 
-    # Write UTF-8 bytes directly to avoid Windows CP1252 console encoding issues
-    out = json.dumps(boxes, ensure_ascii=False)
-    sys.stdout.buffer.write(out.encode("utf-8"))
+
+def emit(boxes):
+    # Write UTF-8 bytes directly to dodge Windows CP1252 console encoding.
+    sys.stdout.buffer.write(json.dumps(boxes, ensure_ascii=False).encode("utf-8"))
     sys.stdout.buffer.write(b"\n")
     sys.stdout.buffer.flush()
+
+
+def main():
+    if len(sys.argv) >= 2 and sys.argv[1] == "--serve":
+        lang = sys.argv[2] if len(sys.argv) > 2 else "ch"
+        ocr, ver = build_ocr(lang)
+        emit([])  # readiness signal: empty line once the model is loaded
+        for line in sys.stdin:
+            path = line.strip()
+            if not path:
+                continue
+            try:
+                emit(recognize(ocr, ver, path))
+            except Exception as e:
+                sys.stderr.write(f"ocr-serve error: {e}\n")
+                sys.stderr.flush()
+                emit([])
+        return
+
+    if len(sys.argv) < 2:
+        emit([])
+        return
+    image_path = sys.argv[1]
+    lang = sys.argv[2] if len(sys.argv) > 2 else "ch"
+    ocr, ver = build_ocr(lang)
+    emit(recognize(ocr, ver, image_path))
+
 
 if __name__ == "__main__":
     main()

@@ -22,7 +22,7 @@ import { Elysia, t } from "elysia";
 import { runAhk, ahkTemplate } from "./ahk";
 import { runPowerShellInline } from "./powershell";
 import { takeScreenshot } from "./screenshot";
-import { runOcr } from "./ocr";
+import { runOcr, getOcrWorker, diffBoxes, type OcrBox } from "./ocr";
 import { readLockState, forceUnlockUi, acquireUiLock } from "./ui-lock";
 import { checkAuth } from "./auth";
 
@@ -160,5 +160,55 @@ export function makeApp() {
       } catch (e: any) {
         return Response.json({ ok: false, error: e?.message ?? String(e) }, { status: 500 });
       }
-    }, { query: t.Object({ lang: t.Optional(t.String()) }) });
+    }, { query: t.Object({ lang: t.Optional(t.String()) }) })
+    .get("/ocr-stream", ({ query: { window, process: proc, crop, lang, interval, maxw }, request }) => {
+      // Streaming OCR diff: poll on the host, emit only changed text boxes as SSE.
+      //   data: + x1 y1 x2 y2 "text"   (box appeared)
+      //   data: - x1 y1 x2 y2 "text"   (box disappeared)
+      // Uses a warm OCR worker (model stays loaded) and passive capture
+      // (foreground=0) so it doesn't steal focus from the live game.
+      const worker = getOcrWorker(lang ?? "en");
+      const shotOpts = {
+        window, process: proc, crop, foreground: false,
+        maxWidth: maxw ? parseInt(maxw, 10) : undefined,
+      };
+      const tickMs = interval ? parseInt(interval, 10) : 400;
+      const enc = new TextEncoder();
+      let prev: OcrBox[] = [];
+      const stream = new ReadableStream({
+        async start(controller) {
+          const send = (s: string) => controller.enqueue(enc.encode(s));
+          send(`event: ready\ndata: ocr-stream lang=${lang ?? "en"} interval=${tickMs}ms\n\n`);
+          try {
+            while (!request.signal.aborted) {
+              let path: string;
+              try {
+                path = await takeScreenshot(shotOpts);
+              } catch (e) {
+                send(`event: error\ndata: ${String(e).replace(/\n/g, " ")}\n\n`);
+                await Bun.sleep(tickMs);
+                continue;
+              }
+              const { boxes } = await worker.recognize(path);
+              const { added, removed } = diffBoxes(prev, boxes);
+              for (const b of removed) send(`data: - ${b.x1} ${b.y1} ${b.x2} ${b.y2} ${JSON.stringify(b.text)}\n\n`);
+              for (const b of added) send(`data: + ${b.x1} ${b.y1} ${b.x2} ${b.y2} ${JSON.stringify(b.text)}\n\n`);
+              prev = boxes;
+              await Bun.sleep(tickMs);
+            }
+          } catch { /* client gone / worker died */ }
+          finally { try { controller.close(); } catch {} }
+        },
+      });
+      return new Response(stream, {
+        headers: { "content-type": "text/event-stream", "cache-control": "no-cache", "connection": "keep-alive" },
+      });
+    }, { query: t.Object({
+      window: t.Optional(t.String()),
+      process: t.Optional(t.String()),
+      crop: t.Optional(t.String()),
+      lang: t.Optional(t.String()),
+      interval: t.Optional(t.String()),
+      maxw: t.Optional(t.String()),
+    }) });
 }

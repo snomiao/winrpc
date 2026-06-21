@@ -132,16 +132,30 @@ export function getOcrWorker(lang = "ch"): OcrWorker {
 // ── diff (appeared / disappeared text boxes between two frames) ───────────────
 export interface BoxDiff { added: OcrBox[]; removed: OcrBox[] }
 
-// Identity = text + position bucket (8px) so small OCR jitter doesn't churn.
-const boxKey = (b: OcrBox) => `${Math.round(b.x1 / 8)}:${Math.round(b.y1 / 8)}:${b.text}`;
+// PaddleOCR re-detects boxes for the SAME static text a few dozen px apart frame
+// to frame (the animated HUD shifts detection regions). So match by exact text +
+// center within a tolerance, not by a coordinate bucket — otherwise static
+// labels churn every frame. A genuinely changed string (different text) won't
+// match and correctly diffs as removed+added.
+const DEFAULT_TOL = 50; // px center distance
+const center = (b: OcrBox): [number, number] => [(b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2];
 
-export function diffBoxes(prev: OcrBox[], cur: OcrBox[]): BoxDiff {
+export function diffBoxes(prev: OcrBox[], cur: OcrBox[], tol = DEFAULT_TOL): BoxDiff {
   const nonEmpty = (bs: OcrBox[]) => bs.filter((b) => b.text.trim().length > 0);
   const p = nonEmpty(prev), c = nonEmpty(cur);
-  const pk = new Set(p.map(boxKey));
-  const ck = new Set(c.map(boxKey));
-  return {
-    added: c.filter((b) => !pk.has(boxKey(b))),
-    removed: p.filter((b) => !ck.has(boxKey(b))),
-  };
+  const matched = new Set<number>();
+  const added: OcrBox[] = [];
+  for (const cb of c) {
+    const [cx, cy] = center(cb);
+    let hit = -1;
+    for (let i = 0; i < p.length; i++) {
+      if (matched.has(i) || p[i]!.text !== cb.text) continue;
+      const [px, py] = center(p[i]!);
+      if (Math.abs(px - cx) <= tol && Math.abs(py - cy) <= tol) { hit = i; break; }
+    }
+    if (hit >= 0) matched.add(hit);
+    else added.push(cb);
+  }
+  const removed = p.filter((_, i) => !matched.has(i));
+  return { added, removed };
 }

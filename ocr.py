@@ -119,8 +119,14 @@ def main():
         lang = sys.argv[2] if len(sys.argv) > 2 else "ch"
         ocr, ver = build_ocr(lang)
         emit([])  # readiness signal: empty line once the model is loaded
-        for line in sys.stdin:
-            path = line.strip()
+        # readline() (not `for line in sys.stdin`) — the latter read-ahead-buffers
+        # on a pipe and blocks until the buffer fills, so per-frame paths never
+        # get processed promptly.
+        while True:
+            line = sys.stdin.readline()
+            if not line:
+                break  # stdin closed
+            path = line.strip()  # one image path per line
             if not path:
                 continue
             try:

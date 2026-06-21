@@ -56,11 +56,20 @@ def build_ocr(lang):
     if ver >= (3, 0):
         # Disable oneDNN/MKLDNN: paddle 3.3.1's PIR executor crashes in the
         # oneDNN path on this CPU build. Fall back if the kwarg is unsupported.
+        # Screen text is horizontal — skip the doc-orientation, doc-unwarping
+        # and textline-orientation sub-models. That's 3 fewer models to load
+        # (faster startup, less VRAM) and we don't need rotation anyway.
+        opts = dict(lang=lang, ocr_version="PP-OCRv4",
+                    use_textline_orientation=False,
+                    use_doc_orientation_classify=False,
+                    use_doc_unwarping=False)
         try:
-            ocr = PaddleOCR(use_textline_orientation=True, lang=lang,
-                            ocr_version="PP-OCRv4", enable_mkldnn=False)
+            ocr = PaddleOCR(**opts, enable_mkldnn=False)
         except TypeError:
-            ocr = PaddleOCR(use_textline_orientation=True, lang=lang, ocr_version="PP-OCRv4")
+            try:
+                ocr = PaddleOCR(**opts)
+            except TypeError:
+                ocr = PaddleOCR(lang=lang, ocr_version="PP-OCRv4")
     else:
         ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
     return ocr, ver

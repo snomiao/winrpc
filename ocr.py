@@ -36,15 +36,20 @@ def build_ocr(lang):
         import site
         roots = list(site.getsitepackages()) if hasattr(site, "getsitepackages") else []
         roots.append(os.path.dirname(os.path.dirname(__file__)))  # python lib dir fallback
-        seen = set()
+        seen = []
         for sp in roots:
             for d in glob.glob(os.path.join(sp, "nvidia", "*", "bin")):
                 if os.path.isdir(d) and d not in seen:
-                    seen.add(d)
+                    seen.append(d)
                     try:
                         os.add_dll_directory(d)
                     except OSError:
                         pass
+        # Also PREPEND to PATH so transitive CUDA deps (cudart/nvJitLink that
+        # cusparse pulls) resolve to these bundled versions before any other
+        # app's CUDA on PATH (ollama/WSL/Docker) — the WinError 127 cause.
+        if seen:
+            os.environ["PATH"] = os.pathsep.join(seen) + os.pathsep + os.environ.get("PATH", "")
     from paddleocr import PaddleOCR
     import paddleocr as _pocr_mod
     ver = tuple(int(x) for x in getattr(_pocr_mod, "__version__", "2.0.0").split(".")[:2])

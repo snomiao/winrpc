@@ -191,8 +191,18 @@ export function makeApp() {
               }
               const { boxes } = await worker.recognize(path);
               const { added, removed } = diffBoxes(prev, boxes);
-              for (const b of removed) send(`data: - ${b.x1} ${b.y1} ${b.x2} ${b.y2} ${JSON.stringify(b.text)}\n\n`);
-              for (const b of added) send(`data: + ${b.x1} ${b.y1} ${b.x2} ${b.y2} ${JSON.stringify(b.text)}\n\n`);
+              // Row context: other boxes on the same line (y-center within
+              // tolerance), left→right — so "39%" reads as its whole field/row.
+              const rowCtx = (t: OcrBox, frame: OcrBox[]) => {
+                const cy = (t.y1 + t.y2) / 2, tol = Math.max(12, (t.y2 - t.y1) * 0.5);
+                return frame
+                  .filter((b) => Math.abs((b.y1 + b.y2) / 2 - cy) <= tol)
+                  .sort((a, b) => a.x1 - b.x1)
+                  .map((b) => b.text)
+                  .join(" ");
+              };
+              for (const b of removed) send(`data: - ${b.x1} ${b.y1} ${b.x2} ${b.y2} ${JSON.stringify(b.text)} «${rowCtx(b, prev)}»\n\n`);
+              for (const b of added) send(`data: + ${b.x1} ${b.y1} ${b.x2} ${b.y2} ${JSON.stringify(b.text)} «${rowCtx(b, boxes)}»\n\n`);
               prev = boxes;
               await Bun.sleep(tickMs);
             }

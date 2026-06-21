@@ -27,6 +27,24 @@ def build_ocr(lang):
     _device = os.environ.get("OCR_DEVICE", "").strip().lower()
     if _device == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    elif hasattr(os, "add_dll_directory"):
+        # Windows GPU build: the bundled CUDA DLLs live in site-packages/nvidia/
+        # */bin. When this process is *spawned* (vs an interactive shell), a
+        # conflicting cusparse/cublas on PATH can win and cause WinError 127.
+        # Register the bundled dirs explicitly so the matching versions load.
+        import glob
+        import site
+        roots = list(site.getsitepackages()) if hasattr(site, "getsitepackages") else []
+        roots.append(os.path.dirname(os.path.dirname(__file__)))  # python lib dir fallback
+        seen = set()
+        for sp in roots:
+            for d in glob.glob(os.path.join(sp, "nvidia", "*", "bin")):
+                if os.path.isdir(d) and d not in seen:
+                    seen.add(d)
+                    try:
+                        os.add_dll_directory(d)
+                    except OSError:
+                        pass
     from paddleocr import PaddleOCR
     import paddleocr as _pocr_mod
     ver = tuple(int(x) for x in getattr(_pocr_mod, "__version__", "2.0.0").split(".")[:2])

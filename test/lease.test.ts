@@ -6,6 +6,10 @@ import { join } from "path";
 // Isolated lock file and a fake token, set before the server (and auth.ts) load.
 const dir = mkdtempSync(join(tmpdir(), "winrpc-lease-"));
 process.env.IM_UI_LOCK_PATH = join(dir, "im-ui.lock");
+// The tests send "MsgBox 1" to /ahk-eval and only look at the lease decision (423 or not). On a host
+// with AutoHotkey at its default path that would open a real dialog and block for the AHK timeout, so
+// point AHK_EXE at a file that does not exist: the spawn fails at once, like on a host without AHK.
+process.env.AHK_EXE = join(dir, "no-autohotkey.exe");
 process.env.WINRPC_TOKEN = "test-token-0123456789abcdef";
 delete process.env.WINRPC_URL;
 delete process.env.WINRPC_LEASE_GUARDS;
@@ -299,6 +303,7 @@ describe("CLI with a running server", () => {
       HOME: cwd,
       IM_UI_LOCK_PATH: join(cwd, "im-ui.lock"),
       WINRPC_TOKEN: "cli-test-token-0123456789abcdef",
+      AHK_EXE: join(cwd, "no-autohotkey.exe"), // see the top of this file
     };
     const entry = join(import.meta.dir, "../src/index.ts");
     const server = Bun.spawn(["bun", entry, "serve", "--host", "127.0.0.1", "--port", String(port)], {

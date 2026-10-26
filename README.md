@@ -56,6 +56,36 @@ bun src/index.ts
 
 Default port: `12371`. Override with `PORT` env.
 
+## System Tray
+
+`winrpc tray` (or `bun src/tray.ts`) puts a tray icon on the Windows notification
+area for the server running on this host. The icon is blue while `GET /health`
+answers and red when it does not; the menu is rebuilt from `/health` + `/lock`
+every 5s.
+
+Menu:
+- **status line** — uptime and PID from `/health`
+- **Copy WINRPC_URL** — puts `http://<token>@localhost:<port>` on the clipboard
+- **Open .../health** — opens it in the default browser
+- **UI lock** line, plus **Force-unlock UI lock** (enabled only while a lock is held)
+- **Restart server** — `POST /redeploy`; the server exits(2) and its supervisor
+  relaunches it on the latest code
+- **Quit Tray** — closes the icon only; the server keeps running
+
+The tray is a client: it never starts or supervises the server (that is the
+scheduled task, see `register-winrpc.ps1` / `scripts/install-schtask.ps1`), so it
+can be started and quit freely. It reads `WINRPC_TOKEN` from the environment or
+`.env.local` and never generates one — a tray started before the server can't
+mint a token the server won't have.
+
+Run it window-less (no console flash), e.g. from a shortcut in `shell:startup`:
+
+```
+wscript scripts\tray-launch.vbs
+```
+
+Set `PORT` (or `winrpc tray --port`) when the server is not on `12371`.
+
 ## Environment Variables
 
 | Variable | Default | Description |

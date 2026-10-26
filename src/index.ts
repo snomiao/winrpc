@@ -79,6 +79,18 @@ await yargs(hideBin(process.argv))
       await ahkRepl(argv.url);
     },
   )
+  .command(
+    "tray",
+    "Show a system-tray icon tracking this host's winrpc server",
+    (y) => y.option("port", { type: "number", default: parseInt(process.env.PORT ?? "12371") }),
+    async (argv) => {
+      // Imported lazily: the tray pulls in systray2 and spawns its helper
+      // binary, which `winrpc serve` must never do.
+      process.env.PORT = String(argv.port);
+      const { startTray } = await import("./tray");
+      await startTray();
+    },
+  )
   .strict()
   .help()
   .parse();

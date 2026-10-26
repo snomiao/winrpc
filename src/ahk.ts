@@ -18,6 +18,7 @@ import { existsSync, readFileSync, statSync } from "fs";
 import { join } from "path";
 import { mkdirSync, writeFileSync, unlinkSync } from "fs";
 
+import { redactSecrets } from "./redact";
 const IS_WIN = process.platform === "win32";
 const AHK_EXE = process.env.AHK_EXE ?? "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe";
 
@@ -34,15 +35,22 @@ function getTemplateDir(): string {
 const _tplCache = new Map<string, string>();
 const _tplMtimes = new Map<string, number>();
 
+// winrpc's own templates (find-owned-window, paste-text, ime-off …) are found even when
+// AHK_TEMPLATES_DIR points at an app's ahk/ directory; the app's files win on a name clash.
+const OWN_TEMPLATE_DIR = join(import.meta.dir, "..", "ahk");
+
 function loadTemplate(dir: string, name: string): string {
-  // Try <name>.template.ahk first, then <name>.ahk
+  // Try <name>.template.ahk first, then <name>.ahk; the configured dir first, then winrpc's own
   const candidates = [`${name}.template.ahk`, `${name}.ahk`];
   let path = "";
-  for (const c of candidates) {
-    const p = join(dir, c);
-    if (existsSync(p)) { path = p; break; }
+  for (const d of [dir, OWN_TEMPLATE_DIR]) {
+    for (const c of candidates) {
+      const p = join(d, c);
+      if (existsSync(p)) { path = p; break; }
+    }
+    if (path) break;
   }
-  if (!path) throw new Error(`AHK template not found: ${name} (looked in ${dir})`);
+  if (!path) throw new Error(`AHK template not found: ${name} (looked in ${dir} and ${OWN_TEMPLATE_DIR})`);
 
   const mtime = statSync(path).mtimeMs;
   if (_tplCache.has(name) && _tplMtimes.get(name) === mtime) return _tplCache.get(name)!;
@@ -70,7 +78,7 @@ const _AHK_PREAMBLE = [
 export function ahkTemplate(name: string, vars: Record<string, string> = {}): string {
   const dir = getTemplateDir();
   // Pre-load builtins so substitution order is predictable.
-  const builtins = ["find-wechat-readonly", "find-wechat-passive", "find-wechat", "uia-helpers"];
+  const builtins = ["find-wechat-readonly", "find-wechat-passive", "find-wechat", "uia-helpers", "lib-find-owned", "lib-ime-off"];
   for (const b of builtins) {
     try { loadTemplate(dir, b); } catch { /* optional — only substitute if present */ }
   }
@@ -81,8 +89,14 @@ export function ahkTemplate(name: string, vars: Record<string, string> = {}): st
   if (_tplCache.has("find-wechat-passive"))  tpl = tpl.replaceAll("{{FIND_WECHAT_PASSIVE}}",  _tplCache.get("find-wechat-passive")!);
   if (_tplCache.has("find-wechat"))          tpl = tpl.replaceAll("{{FIND_WECHAT}}",          _tplCache.get("find-wechat")!);
   if (_tplCache.has("uia-helpers"))          tpl = tpl.replaceAll("{{UIA_HELPERS}}",          _tplCache.get("uia-helpers")!);
-  for (const [k, v] of Object.entries(vars)) tpl = tpl.replaceAll(`{{${k}}}`, v);
-  return tpl;
+  if (_tplCache.has("lib-find-owned"))       tpl = tpl.replaceAll("{{FIND_OWNED}}",           _tplCache.get("lib-find-owned")!);
+  if (_tplCache.has("lib-ime-off"))          tpl = tpl.replaceAll("{{IME_OFF}}",              _tplCache.get("lib-ime-off")!);
+  // One pass over the template: inserted values are never scanned again (a value may contain "{{X}}").
+  // Optional vars a caller did not pass render empty (the templates give them defaults; a placeholder
+  // left in the script would be an AHK syntax error anyway). Other {{…}} shapes stay as they are.
+  return tpl.replace(/\{\{([^{}]+)\}\}/g, (m, k: string) =>
+    Object.hasOwn(vars, k) ? vars[k]! : /^[A-Z][A-Z0-9_]*$/.test(k) ? "" : m,
+  );
 }
 
 export async function runAhk(
@@ -108,6 +122,9 @@ export async function runAhk(
         signal: controller.signal,
       });
       return await res.json() as { ok: boolean; stdout: string; stderr: string; exitCode: number };
+    } catch (e: any) {
+      // fetch errors can quote the URL, and $WINRPC_URL carries the token
+      throw new Error(redactSecrets(String(e?.message ?? e)));
     } finally {
       clearTimeout(timer);
     }

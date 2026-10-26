@@ -33,8 +33,16 @@ export interface LockState {
 export interface LockHandle {
   state: LockState;
   release(): void;
-  renew(extraMs?: number): void;
+  /** Extend the expiry to now + extraMs. Only while the file is still ours; false if it was taken over. */
+  renew(extraMs?: number): boolean;
   isHeld(): boolean;
+}
+
+/** Heartbeat: keep `handle` alive while a long action runs (renews now, then every `everyMs`). */
+export function keepAlive(handle: LockHandle, aheadMs = 60_000, everyMs = 15_000): () => void {
+  handle.renew(aheadMs);
+  const t = setInterval(() => handle.renew(aheadMs), everyMs);
+  return () => clearInterval(t);
 }
 
 export function getLockPath(): string {
@@ -97,16 +105,24 @@ export async function acquireUiLock(
       let released = false;
       const handle: LockHandle = {
         state,
-        isHeld() { return !released && readLockState()?.pid === process.pid; },
+        isHeld() {
+          const cur = readLockState();
+          return !released && cur?.pid === process.pid && cur.acquiredAt === state.acquiredAt && cur.holder === state.holder;
+        },
         renew(extraMs = ttlMs) {
-          if (released) return;
+          // Never overwrite a lock another holder took over after ours expired (heartbeats renew well
+          // before expiry, so a holder that is still running doesn't get there).
+          if (!handle.isHeld()) return false;
           const fresh = { ...state, expiresAt: Date.now() + extraMs };
           try {
             const fd = openSync(path, "w");
             writeSync(fd, JSON.stringify(fresh));
             closeSync(fd);
             state.expiresAt = fresh.expiresAt;
-          } catch {}
+            return true;
+          } catch {
+            return false;
+          }
         },
         release() {
           if (released) return;

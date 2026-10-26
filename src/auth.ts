@@ -16,6 +16,7 @@
 import { existsSync, readFileSync, appendFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
+import { mask } from "./redact";
 
 const ENV_FILE = join(process.cwd(), ".env.local");
 
@@ -61,16 +62,19 @@ export function checkAuth(authHeader: string | null): Response | null {
   return null;
 }
 
-/** Print the startup URL banner so the user can copy-paste the env var. */
+/**
+ * Print the startup banner. The token itself is never printed (console output ends up in
+ * supervisor logs and screenshots): it shows the URL shape and where to read the token.
+ */
 export function printTokenBanner(host: string, port: number) {
-  const url = `http://${TOKEN}@${host === "0.0.0.0" ? "localhost" : host}:${port}`;
+  const url = `http://<token>@${host === "0.0.0.0" ? "localhost" : host}:${port}`;
   console.log("");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("  winrpc access token (WINRPC_TOKEN in ./.env.local)");
+  console.log(`  winrpc access token: WINRPC_TOKEN in ${ENV_FILE} (${mask(TOKEN)})`);
   console.log("");
   console.log(`  WINRPC_URL=${url}`);
   console.log("");
-  console.log("  Add to your .env.local on the client machine.");
+  console.log("  Copy the token from that file into the client's .env.local.");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("");
 }

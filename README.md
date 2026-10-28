@@ -24,11 +24,18 @@ Windows desktop automation RPC server. Exposes AHK v2 script execution, PowerShe
 | Command | Notes |
 |---|---|
 | `winrpc serve` (default) | Start the server |
+| `winrpc health` / `winrpc version` | `GET /health` / `GET /version` (JSON) |
+| `winrpc shell [command…] [--lease id]` | `POST /shell` once and exit with its exit code (`-` reads stdin); no command → `shell>` REPL |
+| `winrpc ahk [script…] [--lease id]` | `POST /ahk-eval` once and exit with its exit code (`-` reads stdin) |
 | `winrpc ahk-repl [url] [--lease id]` | Pipe stdin lines to `/ahk-eval`; exits `75` if another owner holds a lease |
+| `winrpc screenshot [path] [--window …] [--process …] [--crop x,y,w,h] [--maxw n]` | Save the PNG locally (default `./tmp/winrpc-shot-<ts>.png`), print its path |
 | `winrpc lock [--url …]` | `GET /lock`: lock state and lease |
 | `winrpc lock acquire --owner <who> [--label …] [--ttl s] [--wait s]` | Prints `{lease, expires_at}`; exits `75` if held |
 | `winrpc lock renew [lease] [--ttl s]` / `winrpc lock release [lease]` | lease from the argument or `$WINRPC_LEASE` |
+| `winrpc force-unlock` / `winrpc redeploy` | `POST /lock/force-unlock` / `POST /redeploy` (JSON) |
 
+- Every client command exits `75` if another owner holds a lease, and `1` with a one-line
+  `cannot reach winrpc at …` error when the server is down.
 - URL from the argument / `--url`, else `$WINRPC_URL`; token from the URL username, else `$WINRPC_TOKEN`
   (sent as `Authorization: Bearer`); lease from `--lease`, else `$WINRPC_LEASE` (sent as `X-Winrpc-Lease`).
 - The token never prints: help, errors, banners and any other console output mask it

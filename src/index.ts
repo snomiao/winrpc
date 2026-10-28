@@ -2,6 +2,8 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { createInterface } from "readline";
+import { mkdir } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { installConsoleRedaction, redactUrl } from "./redact";
 
 // The token never reaches the terminal: every console.* call is redacted (help, errors, debug).
@@ -86,19 +88,48 @@ async function postJson(c: Client, path: string, body?: unknown) {
   console.log(JSON.stringify(data, null, 2));
 }
 
-async function ahkRepl(c: Client) {
-  const base = c.base;
-  const endpoint = `${base}/ahk-eval`;
+// Read the response body once, parse as JSON, fall back to {stderr: text}.
+async function readRpcBody(res: Response): Promise<any> {
+  const txt = await res.text();
+  try { return JSON.parse(txt); } catch { return { stderr: txt }; }
+}
+
+function printStreams(data: any) {
+  if (data?.stdout) process.stdout.write(data.stdout.endsWith("\n") ? data.stdout : data.stdout + "\n");
+  if (data?.stderr) process.stderr.write(data.stderr.endsWith("\n") ? data.stderr : data.stderr + "\n");
+}
+
+// One-shot POST of a text body to /shell or /ahk-eval: mirror the streams, exit with the remote exit code.
+async function oneShot(c: Client, path: string, body: string): Promise<never> {
+  let res: Response;
+  try {
+    res = await fetch(`${c.base}${path}`, { method: "POST", headers: { ...c.headers, "content-type": "text/plain" }, body });
+  } catch (e: any) {
+    console.error(`error: cannot reach winrpc at ${c.base} (${path}): ${e?.code ?? e?.message ?? e}`);
+    process.exit(1);
+  }
+  const data = await readRpcBody(res);
+  if (res.status === 423) {
+    printLeaseHeld(data);
+    process.exit(EXIT_LEASE_HELD);
+  }
+  printStreams(data);
+  process.exit(typeof data.exitCode === "number" ? data.exitCode : data.ok === false || !res.ok ? 1 : 0);
+}
+
+// Interactive loop: POST each non-empty stdin line to `path`, unpack the streams inline.
+async function repl(c: Client, path: string, label: string) {
+  const endpoint = `${c.base}${path}`;
   const headers: Record<string, string> = { ...c.headers, "content-type": "text/plain" };
 
   const tty = process.stdin.isTTY;
-  if (tty) console.error(`winrpc ahk-repl → ${base}  (Ctrl-D to exit)`);
+  if (tty) console.error(`winrpc ${label}-repl → ${c.base}  (Ctrl-D to exit)`);
 
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
     terminal: tty,
-    prompt: tty ? "ahk> " : "",
+    prompt: tty ? `${label}> ` : "",
   });
   if (tty) rl.prompt();
 
@@ -107,13 +138,12 @@ async function ahkRepl(c: Client) {
     if (!script) { if (tty) rl.prompt(); return; }
     try {
       const res = await fetch(endpoint, { method: "POST", headers, body: script });
-      const data: any = await res.json().catch(async () => ({ stderr: await res.text() }));
+      const data = await readRpcBody(res);
       if (res.status === 423) {
         printLeaseHeld(data);
         process.exit(EXIT_LEASE_HELD);
       }
-      if (data.stdout) process.stdout.write(data.stdout.endsWith("\n") ? data.stdout : data.stdout + "\n");
-      if (data.stderr) process.stderr.write(data.stderr.endsWith("\n") ? data.stderr : data.stderr + "\n");
+      printStreams(data);
       if (data.ok === false && !data.stderr) process.stderr.write(`[exit ${data.exitCode ?? "?"}]\n`);
     } catch (e: any) {
       process.stderr.write(`[request failed] ${e?.message ?? e}\n`);
@@ -124,8 +154,56 @@ async function ahkRepl(c: Client) {
   await new Promise<void>((resolve) => rl.on("close", resolve));
 }
 
+async function readStdin(): Promise<string> {
+  const chunks: Uint8Array[] = [];
+  for await (const c of process.stdin) chunks.push(c as Uint8Array);
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+// One-shot body from positional words: none → undefined, "-" → stdin, else joined with spaces.
+// yargs drops a lone "-", so it is also recovered from the raw argv.
+async function resolveBody(parts: string[]): Promise<string | undefined> {
+  if (parts.length === 1 && parts[0] === "-") return readStdin();
+  if (parts.length === 0) return hideBin(process.argv).includes("-") ? readStdin() : undefined;
+  return parts.join(" ");
+}
+
+async function screenshot(c: Client, out: string | undefined, query: Record<string, string | undefined>) {
+  const qs = new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => e[1] !== undefined));
+  const path = `/screenshot${qs.size ? `?${qs}` : ""}`;
+  let res: Response;
+  try {
+    res = await fetch(`${c.base}${path}`, { method: "POST", headers: c.headers });
+  } catch (e: any) {
+    console.error(`error: cannot reach winrpc at ${c.base} (/screenshot): ${e?.code ?? e?.message ?? e}`);
+    process.exit(1);
+  }
+  if (res.status === 423) {
+    printLeaseHeld(await readRpcBody(res));
+    process.exit(EXIT_LEASE_HELD);
+  }
+  if (!res.ok) {
+    console.error(`HTTP ${res.status} ${res.statusText} on /screenshot`);
+    console.error(await res.text());
+    process.exit(1);
+  }
+  const file = resolve(out ?? `./tmp/winrpc-shot-${new Date().toISOString().replace(/[:.]/g, "-")}.png`);
+  await mkdir(dirname(file), { recursive: true });
+  await Bun.write(file, await res.arrayBuffer());
+  const remote = res.headers.get("x-screenshot-path");
+  if (remote) process.stderr.write(`X-Screenshot-Path: ${remote}\n`);
+  console.log(file);
+}
+
+// No `default:` on --url: yargs prints defaults in --help, and $WINRPC_URL carries the token.
+const urlOption = (y: any) => y.option("url", { type: "string", describe: "Target winrpc URL (default $WINRPC_URL)" });
+const leaseOption = (y: any) =>
+  y.option("lease", { type: "string", describe: "UI lease id from `winrpc lock acquire` (default $WINRPC_LEASE)" });
+const words = (argv: any, key: string) => [...(argv[key] ?? []), ...(argv["--"] ?? [])].map(String);
+
 await yargs(hideBin(process.argv))
   .scriptName("winrpc")
+  .parserConfiguration({ "populate--": true })
   .command(
     ["serve", "$0"],
     "Start the winrpc server",
@@ -135,16 +213,68 @@ await yargs(hideBin(process.argv))
     (argv) => serve(argv.host, argv.port),
   )
   .command(
+    "health",
+    "GET /health on the target server (JSON)",
+    urlOption,
+    (argv) => postJson(resolveClient(argv.url as string | undefined), "/health"),
+  )
+  .command(
+    "version",
+    "GET /version on the target server (JSON)",
+    urlOption,
+    (argv) => postJson(resolveClient(argv.url as string | undefined), "/version"),
+  )
+  .command(
+    "shell [command..]",
+    "Run PowerShell on the target server: one-shot with a command ('-' reads stdin), else a shell> REPL",
+    (y) => leaseOption(urlOption(y)).positional("command", { type: "string", array: true }),
+    async (argv) => {
+      const c = resolveClient(argv.url as string | undefined, argv.lease as string | undefined);
+      const body = await resolveBody(words(argv, "command"));
+      if (body === undefined) await repl(c, "/shell", "shell");
+      else await oneShot(c, "/shell", body);
+    },
+  )
+  .command(
+    "ahk [script..]",
+    "Run an AHK v2 script once on the target server ('-' reads stdin); exits with its exit code",
+    (y) => leaseOption(urlOption(y)).positional("script", { type: "string", array: true }),
+    async (argv) => {
+      const c = resolveClient(argv.url as string | undefined, argv.lease as string | undefined);
+      const body = await resolveBody(words(argv, "script"));
+      if (body === undefined) {
+        console.error("error: ahk needs a script argument (or '-' for stdin); use ahk-repl for a loop");
+        process.exit(2);
+      }
+      await oneShot(c, "/ahk-eval", body);
+    },
+  )
+  .command(
     "ahk-repl [url]",
     "Pipe stdin lines to a target winrpc server as AHK commands, print responses inline",
-    // No `default:` here: yargs prints defaults in --help, and $WINRPC_URL carries the token.
-    (y) => y
-      .positional("url", {
-        type: "string",
-        describe: `Target winrpc URL (default $WINRPC_URL${process.env.WINRPC_URL ? ", set" : ", unset"})`,
-      })
-      .option("lease", { type: "string", describe: "UI lease id from `winrpc lock acquire` (default $WINRPC_LEASE)" }),
-    async (argv) => ahkRepl(resolveClient(argv.url as string | undefined, argv.lease as string | undefined)),
+    (y) => leaseOption(urlOption(y)).positional("url", {
+      type: "string",
+      describe: `Target winrpc URL (default $WINRPC_URL${process.env.WINRPC_URL ? ", set" : ", unset"})`,
+    }),
+    async (argv) => repl(resolveClient(argv.url as string | undefined, argv.lease as string | undefined), "/ahk-eval", "ahk"),
+  )
+  .command(
+    "screenshot [path]",
+    "Capture the screen (or one window) and save the PNG locally; prints the local path",
+    (y) => leaseOption(urlOption(y))
+      .positional("path", { type: "string", describe: "Output PNG (default ./tmp/winrpc-shot-<ts>.png)" })
+      .option("window", { type: "string", describe: "Capture the window whose title contains this" })
+      .option("process", { type: "string", describe: "Capture the window of this process name" })
+      .option("foreground", { type: "boolean", describe: "Bring the target window forward (default true)" })
+      .option("crop", { type: "string", describe: "x,y,w,h region" })
+      .option("maxw", { type: "number", describe: "Downscale to at most this width" }),
+    (argv) => screenshot(resolveClient(argv.url as string | undefined, argv.lease as string | undefined), argv.path as string | undefined, {
+      window: argv.window as string | undefined,
+      process: argv.process as string | undefined,
+      foreground: argv.foreground === undefined ? undefined : argv.foreground ? "1" : "0",
+      crop: argv.crop as string | undefined,
+      maxw: argv.maxw === undefined ? undefined : String(argv.maxw),
+    }),
   )
   .command(
     "lock [action] [lease]",
@@ -181,6 +311,18 @@ await yargs(hideBin(process.argv))
       }
       return postJson(c, `/lock/${action}`, action === "renew" ? { lease, ttl_ms } : { lease });
     },
+  )
+  .command(
+    "force-unlock",
+    "POST /lock/force-unlock: drop the UI lock and any lease (JSON)",
+    urlOption,
+    (argv) => postJson(resolveClient(argv.url as string | undefined), "/lock/force-unlock", {}),
+  )
+  .command(
+    "redeploy",
+    "POST /redeploy: exit the server so its supervisor restarts it (JSON)",
+    urlOption,
+    (argv) => postJson(resolveClient(argv.url as string | undefined), "/redeploy", {}),
   )
   .command(
     "tray",

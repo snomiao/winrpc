@@ -168,10 +168,34 @@ Entry point: `./src/index.ts` (registered as the `winrpc` bin).
 winrpc [command]
 
 Commands:
-  winrpc serve           Start the winrpc server                       [default]
-  winrpc ahk-repl [url]  Pipe stdin lines to a target winrpc server as AHK
-                         commands, print responses inline
+  winrpc serve                  Start the winrpc server                [default]
+  winrpc health                 GET /health on the target server (JSON)
+  winrpc version                GET /version on the target server (JSON)
+  winrpc shell [command..]      Run PowerShell on the target server: one-shot
+                                with a command ('-' reads stdin), else a shell>
+                                REPL
+  winrpc ahk [script..]         Run an AHK v2 script once on the target server
+                                ('-' reads stdin); exits with its exit code
+  winrpc ahk-repl [url]         Pipe stdin lines to a target winrpc server as
+                                AHK commands, print responses inline
+  winrpc screenshot [path]      Capture the screen (or one window) and save the
+                                PNG locally; prints the local path
+  winrpc lock [action] [lease]  UI lock / lease: show (default), or acquire |
+                                renew | release a lease that holds the UI across
+                                steps (JSON)
+  winrpc force-unlock           POST /lock/force-unlock: drop the UI lock and
+                                any lease (JSON)
+  winrpc redeploy               POST /redeploy: exit the server so its
+                                supervisor restarts it (JSON)
+  winrpc tray                   Show a system-tray icon tracking this host's
+                                winrpc server
 ```
+
+Client commands take `--url` (default `$WINRPC_URL`; token from the URL
+username, else `$WINRPC_TOKEN`) and, where they touch the UI, `--lease`
+(default `$WINRPC_LEASE`). Exit codes: `0` ok, `1` HTTP error / unreachable
+server / failed remote command (one-shot `shell`/`ahk` pass the remote
+`exitCode` through), `2` usage error, `75` another owner holds a UI lease.
 
 ### `winrpc serve` (default)
 
@@ -179,6 +203,27 @@ Flags: `--host` (env `HOST`, default `0.0.0.0`), `--port` (env `PORT`,
 default `12371`).
 
 Starts the Elysia server, prints the access token banner.
+
+### `winrpc shell [command..]` / `winrpc ahk [script..]`
+
+One-shot: the words are joined with spaces and POSTed to `/shell` or
+`/ahk-eval`; a lone `-` (or `-- …`) reads the body from stdin. `stdout` /
+`stderr` are mirrored and the process exits with the remote `exitCode`.
+`shell` with no command opens a `shell> ` REPL (same loop as `ahk-repl`);
+`ahk` with no script is a usage error (exit 2).
+
+```sh
+winrpc shell 'Get-Date'
+Get-Content script.ps1 | winrpc shell -
+winrpc ahk 'MsgBox "hi"'
+```
+
+### `winrpc screenshot [path]`
+
+POSTs `/screenshot` (query from `--window`, `--process`, `--foreground`,
+`--crop`, `--maxw`), writes the PNG to `path` (default
+`./tmp/winrpc-shot-<ISO ts>.png`, directories created), prints the local path
+on stdout and the server-side `X-Screenshot-Path` on stderr.
 
 ### `winrpc ahk-repl [url]`
 
@@ -212,7 +257,7 @@ persistent process state between lines.
 
 ```
 src/
-  index.ts        — CLI entry (yargs: serve, ahk-repl)
+  index.ts        — CLI entry (yargs: serve + client subcommands, tray)
   server.ts       — Elysia routes + UI-lock wiring
   auth.ts         — token load/generate, Basic/Bearer check
   ahk.ts          — AutoHotkey escaping, templates, runner

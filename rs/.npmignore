@@ -1,0 +1,4 @@
+# The npm package ships the JavaScript and, from the release pipeline, the
+# built binaries. package.json has no `files` list, so without this file npm
+# and bun would pack the whole directory, this crate included.
+*

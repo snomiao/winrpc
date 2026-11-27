@@ -1,0 +1,57 @@
+# Builds the Rust `winrpc` binary for every platform, packs it together with
+# the TypeScript the package ships, and checks on Linux, macOS and Windows
+# (x64 and arm64) that `bun i -g` / `npm i -g` gives a working `winrpc`
+# command.
+#
+# It does not publish: there is no publish job, and nothing else calls this
+# workflow.
+#
+# The pipeline lives in https://github.com/snomiao/rustify.
+
+name: rust-npm-release
+
+on:
+  pull_request:
+    # The TypeScript is listed too: the binary hands every command to
+    # src/index.ts, so a change there has to be install-tested again.
+    paths:
+      - "rs/**"
+      - "**.ts"
+      - "**.tsx"
+      - "**.mts"
+      - "**.cts"
+      - "**.js"
+      - "**.jsx"
+      - "**.mjs"
+      - "**.cjs"
+      - "package.json"
+      - ".github/workflows/rust-npm-release.yml"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, without a leading v (default: the version in rs/Cargo.toml)"
+        required: false
+        type: string
+
+jobs:
+  build:
+    uses: snomiao/rustify/.github/workflows/rust-npm-build.yml@releases/v1
+    with:
+      manifest: rs/Cargo.toml
+      bins: winrpc
+      version: ${{ inputs.version }}
+      # The binary hands every command to src/index.ts, so these go through
+      # the TypeScript on every machine, and the [handback] lines fail unless
+      # it did. Only --help is run: plain `winrpc` is `winrpc serve`, which
+      # starts a server and writes a token to ./.env.local, and the client
+      # commands contact a winrpc server. (--version is no use as the check:
+      # installed with bun, yargs cannot find the package and prints
+      # "unknown".)
+      smoke: winrpc --help
+      smoke-expect: Start the winrpc server
+      smoke-extra: |
+        [handback] winrpc --help => Start the winrpc server
+        [handback] winrpc serve --help => --host
+        [handback] winrpc ahk-repl --help => Pipe stdin lines to a target winrpc server
+        [handback] winrpc lock --help => UI lock / lease
+        [handback] winrpc tray --help => Show a system-tray icon

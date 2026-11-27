@@ -1,0 +1,3 @@
+/target
+# The root .gitignore ignores `*.lock`; the crate's lock file is committed.
+!Cargo.lock

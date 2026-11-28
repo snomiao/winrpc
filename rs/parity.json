@@ -1036,7 +1036,10 @@
       },
       "after": [
         "cat <ROOT>/requests.log"
-      ]
+      ],
+      "handback": {
+        "linux": "where bun goes for localhost on Linux depends on bun's version and on the machine's addresses"
+      }
     },
     {
       "name": "lock: localhost",
@@ -1050,7 +1053,10 @@
       },
       "after": [
         "cat <ROOT>/requests.log"
-      ]
+      ],
+      "handback": {
+        "linux": "where bun goes for localhost on Linux depends on bun's version and on the machine's addresses"
+      }
     },
     {
       "name": "lock: the host 0.0.0.0",
@@ -1098,7 +1104,7 @@
         "cat <ROOT>/requests.log"
       ],
       "handback": {
-        "linux": "bun on Linux does not ask ::1, and a failed connection is reported in bun's words"
+        "linux": "where bun goes for localhost on Linux depends on bun's version and on the machine's addresses"
       }
     },
     {
@@ -1113,7 +1119,10 @@
       },
       "after": [
         "cat <ROOT>/requests.log"
-      ]
+      ],
+      "handback": {
+        "linux": "where bun goes for localhost on Linux depends on bun's version and on the machine's addresses"
+      }
     },
     {
       "name": "lock: LOCALHOST, servers on both",
@@ -1127,7 +1136,10 @@
       },
       "after": [
         "cat <ROOT>/requests.log"
-      ]
+      ],
+      "handback": {
+        "linux": "where bun goes for localhost on Linux depends on bun's version and on the machine's addresses"
+      }
     },
     {
       "name": "lock: 127.0.0.1, servers on both",
@@ -1155,7 +1167,10 @@
       },
       "after": [
         "sort -u <ROOT>/requests.log"
-      ]
+      ],
+      "handback": {
+        "linux": "where bun goes for localhost on Linux depends on bun's version and on the machine's addresses"
+      }
     },
     {
       "name": "lock: no server",
@@ -1167,7 +1182,7 @@
       "after": [
         "cat <ROOT>/requests.log"
       ],
-      "handback": "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)"
+      "handback": "a failed connection is reported in bun's words, which differ by system and by bun's version"
     },
     {
       "name": "lock: no server, the URL's token masked",
@@ -1179,7 +1194,7 @@
       "after": [
         "cat <ROOT>/requests.log"
       ],
-      "handback": "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)"
+      "handback": "a failed connection is reported in bun's words, which differ by system and by bun's version"
     },
     {
       "name": "lock: no server, WINRPC_URL",
@@ -1192,7 +1207,7 @@
       "after": [
         "cat <ROOT>/requests.log"
       ],
-      "handback": "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)"
+      "handback": "a failed connection is reported in bun's words, which differ by system and by bun's version"
     },
     {
       "name": "lock: 401",
@@ -5269,7 +5284,10 @@
       },
       "after": [
         "cat <ROOT>/requests.log"
-      ]
+      ],
+      "handback": {
+        "linux": "where bun goes for localhost on Linux depends on bun's version and on the machine's addresses"
+      }
     }
   ]
 }

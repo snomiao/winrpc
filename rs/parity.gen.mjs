@@ -158,21 +158,27 @@ add("lock: a path in the URL", ["lock", "--url", "http://MOCKHOST/winrpc/"], { m
 add("lock: a path in the URL without a slash at the end", ["lock", "--url", "http://MOCKHOST/a/b"], { mock: { routes: { "GET /a/b/lock": { status: 200, json: UNLOCKED } } } });
 add("lock: two slashes at the end", ["lock", "--url", "http://MOCKHOST//"], { mock: { routes: { "GET //lock": { status: 200, json: UNLOCKED }, "GET /lock": { status: 200, json: BUSY } } }, back: "bun's fetch asks for /lock where the URL says //lock" });
 add("lock: two slashes inside the path", ["lock", "--url", "http://MOCKHOST/a//b"], { mock: { routes: { "GET /a//b/lock": { status: 200, json: UNLOCKED } } }, back: "an empty path segment is not imitated" });
-add("lock: upper-case scheme and host", ["lock", "--url", "HTTP://LOCALHOST:MOCKPORT"], { mock: ok(UNLOCKED) });
-add("lock: localhost", ["lock", "--url", `http://${FAKE}@localhost:MOCKPORT/`], { mock: ok(UNLOCKED) });
+// For localhost bun asks ::1 first, and 127.0.0.1 when ::1 refuses, on macOS
+// and Windows. On Linux the binary hands localhost back before it connects:
+// bun 1.4.0 asks getaddrinfo with AI_ADDRCONFIG, which glibc answers with
+// 127.0.0.1 alone where ::1 is the only IPv6 address, and bun 1.4.1 and
+// later answer localhost themselves, ::1 first (rs/src/http.rs).
+const LOCALHOST_ON_LINUX = { linux: "where bun goes for localhost on Linux depends on bun's version and on the machine's addresses" };
+add("lock: upper-case scheme and host", ["lock", "--url", "HTTP://LOCALHOST:MOCKPORT"], { mock: ok(UNLOCKED), back: LOCALHOST_ON_LINUX });
+add("lock: localhost", ["lock", "--url", `http://${FAKE}@localhost:MOCKPORT/`], { mock: ok(UNLOCKED), back: LOCALHOST_ON_LINUX });
 // The banner says `winrpc listening on http://0.0.0.0:<port>`.
 // Linux and macOS connect to it; Windows refuses, and the binary hands back.
 add("lock: the host 0.0.0.0", ["lock", "--url", `http://${FAKE}@0.0.0.0:MOCKPORT`], { mock: ok(LEASED), back: { win32: "Windows does not connect to 0.0.0.0, and a failed connection is reported in bun's words" } });
 add("lock: a port with leading zeros", ["lock", "--url", "http://127.0.0.1:0MOCKPORT"], { mock: ok(UNLOCKED) });
-const REFUSED = "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)";
-// For localhost bun asks 127.0.0.1 alone on Linux, and ::1 first on macOS
-// and Windows, 127.0.0.1 when ::1 refuses (rs/src/http.rs).
-add("lock: localhost, the server on ::1 only", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { ...ok(UNLOCKED), listen: "::1" }, tty: ADDRESS_SHOWN, back: { linux: "bun on Linux does not ask ::1, and a failed connection is reported in bun's words" } });
+const REFUSED = "a failed connection is reported in bun's words, which differ by system and by bun's version";
+// What the JavaScript prints when bun 1.4.0 on Linux is refused names the
+// stand-in's port: pipes in the run with --tty too.
+add("lock: localhost, the server on ::1 only", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { ...ok(UNLOCKED), listen: "::1" }, tty: ADDRESS_SHOWN, back: LOCALHOST_ON_LINUX });
 const BOTH = { listen: "both", routes: { "GET /lock": { status: 200, json: { via: "v4" } } }, routes6: { "GET /lock": { status: 200, json: { via: "v6" } } } };
-add("lock: localhost, a server on ::1 and another on 127.0.0.1", ["lock", "--url", `http://${FAKE}@localhost:MOCKPORT`], { mock: BOTH });
-add("lock: LOCALHOST, servers on both", ["lock", "--url", "http://LOCALHOST:MOCKPORT/x/"], { mock: { ...BOTH, routes: { "GET /x/lock": { status: 200, json: { via: "v4" } } }, routes6: { "GET /x/lock": { status: 200, json: { via: "v6" } } } } });
+add("lock: localhost, a server on ::1 and another on 127.0.0.1", ["lock", "--url", `http://${FAKE}@localhost:MOCKPORT`], { mock: BOTH, back: LOCALHOST_ON_LINUX });
+add("lock: LOCALHOST, servers on both", ["lock", "--url", "http://LOCALHOST:MOCKPORT/x/"], { mock: { ...BOTH, routes: { "GET /x/lock": { status: 200, json: { via: "v4" } } }, routes6: { "GET /x/lock": { status: 200, json: { via: "v6" } } } }, back: LOCALHOST_ON_LINUX });
 add("lock: 127.0.0.1, servers on both", ["lock", "--url", "http://127.0.0.1:MOCKPORT"], { mock: BOTH });
-add("lock: localhost, servers on both, a 410 from each", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { listen: "both", routes: { "GET /lock": { status: 410, body: "v4" } }, routes6: { "GET /lock": { status: 410, body: "v6" } } }, twice: true });
+add("lock: localhost, servers on both, a 410 from each", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { listen: "both", routes: { "GET /lock": { status: 410, body: "v4" } }, routes6: { "GET /lock": { status: 410, body: "v6" } } }, twice: true, back: LOCALHOST_ON_LINUX });
 add("lock: no server", ["lock", "--url", "http://127.0.0.1:9"], { back: REFUSED });
 add("lock: no server, the URL's token masked", ["lock", "--url", `http://${FAKE}@127.0.0.1:9`], { back: REFUSED });
 add("lock: no server, WINRPC_URL", ["lock"], { env: { WINRPC_URL: `http://${FAKE}@localhost:9/x/` }, back: REFUSED });
@@ -563,7 +569,7 @@ verify("ahk-repl: no URL, stdin a terminal", ["ahk-repl"], { tty: "stdin", skip:
 verify("lock: an invalid URL, stdin a terminal", ["lock", "--url", "notaurl"], { tty: "stdin", skip: NO_TTY_ON_WINDOWS });
 verify("help: lock --help, stdin a terminal", ["lock", "--help"], { tty: "stdin", skip: NO_TTY_ON_WINDOWS });
 
-verify("lock: localhost, servers on both ::1 and 127.0.0.1", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: BOTH });
+verify("lock: localhost, servers on both ::1 and 127.0.0.1", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: BOTH, back: LOCALHOST_ON_LINUX });
 
 const json = `${JSON.stringify({ env: { WINRPC_PARITY_LOG: "<ROOT>/requests.log" }, cases }, null, 2)}\n`;
 if (process.argv.includes("--check")) {

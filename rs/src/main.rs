@@ -26,6 +26,8 @@ mod json;
 mod machine;
 mod redact;
 mod url;
+#[cfg(test)]
+mod vectors;
 
 /// The package's JavaScript entry, relative to the package root.
 const JS_ENTRY: &str = "src/index.ts";

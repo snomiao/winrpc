@@ -1,7 +1,8 @@
-# Builds the Rust `winrpc` binary for every platform, packs it together with
-# the TypeScript the package ships, and checks on Linux, macOS and Windows
-# (x64 and arm64) that `bun i -g` / `npm i -g` gives a working `winrpc`
-# command.
+# Builds the Rust `winrpc` binary for every platform, proves on Linux,
+# macOS and Windows that it behaves like src/index.ts, packs it together
+# with the TypeScript the package ships, and checks on Linux, macOS and
+# Windows (x64 and arm64) that `bun i -g` / `npm i -g` gives a working
+# `winrpc` command.
 #
 # It does not publish: there is no publish job, and nothing else calls this
 # workflow.
@@ -12,8 +13,9 @@ name: rust-npm-release
 
 on:
   pull_request:
-    # The TypeScript is listed too: the binary hands every command to
-    # src/index.ts, so a change there has to be install-tested again.
+    # The TypeScript is listed too: the binary hands most commands to
+    # src/index.ts and is compared with it, so a change there has to be
+    # proven and install-tested again.
     paths:
       - "rs/**"
       - "**.ts"
@@ -25,6 +27,7 @@ on:
       - "**.mjs"
       - "**.cjs"
       - "package.json"
+      - ".gitattributes"
       - ".github/workflows/rust-npm-release.yml"
   workflow_dispatch:
     inputs:
@@ -34,24 +37,66 @@ on:
         type: string
 
 jobs:
+  # What `cargo test` holds: the URL reader and the redaction against what
+  # bun records (rs/vectors.gen.mjs), and the JavaScript rules the port
+  # spells out. clippy with warnings as errors.
+  unit:
+    name: cargo test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --release --locked --manifest-path rs/Cargo.toml
+      - run: cargo clippy --release --locked --manifest-path rs/Cargo.toml -- -D warnings
+
   build:
     uses: snomiao/rustify/.github/workflows/rust-npm-build.yml@releases/v1
     with:
       manifest: rs/Cargo.toml
       bins: winrpc
       version: ${{ inputs.version }}
-      # The binary hands every command to src/index.ts, so these go through
-      # the TypeScript on every machine, and the [handback] lines fail unless
-      # it did. Only --help is run: plain `winrpc` is `winrpc serve`, which
+      # Only --help is the check: plain `winrpc` is `winrpc serve`, which
       # starts a server and writes a token to ./.env.local, and the client
-      # commands contact a winrpc server. (--version is no use as the check:
+      # commands contact a winrpc server. (--version is no use either:
       # installed with bun, yargs cannot find the package and prints
       # "unknown".)
       smoke: winrpc --help
       smoke-expect: Start the winrpc server
+      # Proof that the binary behaves like the TypeScript, on Linux x64,
+      # macOS arm64 and Windows x64, each with the binary just built for it:
+      # rs/parity/proof.sh checks that the cases file and the recorded
+      # vectors are what their generators write (the vectors with this bun),
+      # then runs side by side the parity cases (rs/parity.json), every one
+      # behind a stand-in winrpc server on 127.0.0.1 (rs/parity/with-mock.mjs;
+      # no case reaches a real server, runs AutoHotkey or starts `serve`):
+      # TypeScript against the binary (WINRPC_PACKAGE_ROOT lets it hand back
+      # what it does not answer); the binary against a stand-in package,
+      # where exactly the cases marked `handback` for that system may reach
+      # the JavaScript; and on Linux and macOS the comparison again on a
+      # terminal. On macOS and Windows also cargo test (Linux has the job
+      # above).
+      parity-timeout-minutes: 60
+      parity-platforms: '["linux-x64", "darwin-arm64", "win32-x64"]'
+      parity: >-
+        bun install
+        && sh rs/parity/proof.sh "$RUSTIFY_PARITY" "$RUSTIFY_BIN_DIR/winrpc"
+      # After installing, on every platform, each line marked with who has
+      # to answer it there. The help pages and the client's refusals before
+      # it sends anything are the binary's own; a usage error, and `help`
+      # as the last word, are yargs's, through the JavaScript, and so is a
+      # failed connection, which bun names in words of its own on each
+      # system. Port 9 of 127.0.0.1 is taken to be closed: nothing leaves
+      # the machine.
       smoke-extra: |
-        [handback] winrpc --help => Start the winrpc server
-        [handback] winrpc serve --help => --host
-        [handback] winrpc ahk-repl --help => Pipe stdin lines to a target winrpc server
-        [handback] winrpc lock --help => UI lock / lease
-        [handback] winrpc tray --help => Show a system-tray icon
+        [native] winrpc --help => Start the winrpc server
+        [native] winrpc serve --help => --host
+        [native] winrpc ahk-repl --help => Pipe stdin lines to a target winrpc server
+        [native] winrpc lock --help => UI lock / lease
+        [native] winrpc tray --help => Show a system-tray icon
+        [2] [native] winrpc lock => error: provide <url> / --url or set WINRPC_URL
+        [2] [native] winrpc lock --url notaurl => error: invalid URL: notaurl
+        [2] [native] winrpc lock acquire --url http://127.0.0.1:9 => error: lock acquire needs --owner
+        [2] [native] winrpc ahk-repl => error: provide <url> / --url or set WINRPC_URL
+        [1] [handback] winrpc lock --url http://127.0.0.1:9 => error: cannot reach winrpc at http://127.0.0.1:9 (/lock):
+        [1] [handback] winrpc frobnicate => Unknown argument: frobnicate
+        [handback] winrpc lock show help => winrpc lock [action] [lease]

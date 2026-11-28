@@ -1079,7 +1079,8 @@
       "tty": false,
       "after": [
         "cat <ROOT>/requests.log"
-      ]
+      ],
+      "handback": "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)"
     },
     {
       "name": "lock: no server",
@@ -1090,7 +1091,8 @@
       ],
       "after": [
         "cat <ROOT>/requests.log"
-      ]
+      ],
+      "handback": "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)"
     },
     {
       "name": "lock: no server, the URL's token masked",
@@ -1101,7 +1103,8 @@
       ],
       "after": [
         "cat <ROOT>/requests.log"
-      ]
+      ],
+      "handback": "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)"
     },
     {
       "name": "lock: no server, WINRPC_URL",
@@ -1113,7 +1116,8 @@
       },
       "after": [
         "cat <ROOT>/requests.log"
-      ]
+      ],
+      "handback": "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)"
     },
     {
       "name": "lock: 401",

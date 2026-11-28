@@ -159,10 +159,11 @@ add("lock: two slashes inside the path", ["lock", "--url", "http://MOCKHOST/a//b
 add("lock: upper-case scheme and host", ["lock", "--url", "HTTP://LOCALHOST:MOCKPORT"], { mock: ok(UNLOCKED) });
 add("lock: localhost", ["lock", "--url", `http://${FAKE}@localhost:MOCKPORT/`], { mock: ok(UNLOCKED) });
 add("lock: a port with leading zeros", ["lock", "--url", "http://127.0.0.1:0MOCKPORT"], { mock: ok(UNLOCKED) });
-add("lock: localhost, the server on ::1 only", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { ...ok(UNLOCKED), listen: "::1" }, tty: ADDRESS_SHOWN });
-add("lock: no server", ["lock", "--url", "http://127.0.0.1:9"]);
-add("lock: no server, the URL's token masked", ["lock", "--url", `http://${FAKE}@127.0.0.1:9`]);
-add("lock: no server, WINRPC_URL", ["lock"], { env: { WINRPC_URL: `http://${FAKE}@localhost:9/x/` } });
+const REFUSED = "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)";
+add("lock: localhost, the server on ::1 only", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { ...ok(UNLOCKED), listen: "::1" }, tty: ADDRESS_SHOWN, back: REFUSED });
+add("lock: no server", ["lock", "--url", "http://127.0.0.1:9"], { back: REFUSED });
+add("lock: no server, the URL's token masked", ["lock", "--url", `http://${FAKE}@127.0.0.1:9`], { back: REFUSED });
+add("lock: no server, WINRPC_URL", ["lock"], { env: { WINRPC_URL: `http://${FAKE}@localhost:9/x/` }, back: REFUSED });
 
 // The answers, as the client prints them. An answer that is not ok goes to
 // console.error, which bun colours on a terminal: there (in the run with

@@ -1803,6 +1803,16 @@
       "env": {
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"raw\":\"HTTP/1.1 200 OK\\r\\nContent-Length: 10\\r\\n\\r\\n{}\"}}}"
       },
+      "normalize": [
+        [
+          "\\n +\\^\\n",
+          "\n^\n"
+        ],
+        [
+          "\\n +at text \\(unknown:1:1\\)",
+          ""
+        ]
+      ],
       "after": [
         "sort -u <ROOT>/requests.log"
       ],

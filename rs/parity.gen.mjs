@@ -39,7 +39,7 @@ function add(name, args, o = {}) {
   const c = { name, args };
   if (o.mock) c.env = { ...(c.env || {}), WINRPC_PARITY_MOCK: JSON.stringify(o.mock) };
   if (o.env) c.env = { ...(c.env || {}), ...o.env };
-  for (const key of ["stdin", "files", "setup", "tty", "skip", "timeout"]) if (o[key] !== undefined) c[key] = o[key];
+  for (const key of ["stdin", "files", "setup", "tty", "skip", "timeout", "normalize"]) if (o[key] !== undefined) c[key] = o[key];
   c.after = o.after ?? [o.twice ? LOG_ONCE_OR_TWICE : LOG];
   if (o.back) c.handback = o.back;
   cases.push(c);
@@ -225,7 +225,12 @@ twice("lock: a lone surrogate", ["lock", "--url", URL], lockAnswer({ status: 200
 twice("lock: a byte order mark", ["lock", "--url", URL], lockAnswer({ status: 200, body: "﻿{}" }), "whether fetch drops a byte order mark is not imitated");
 twice("lock: 423 with a holder JavaScript cannot print", ["lock", "--url", URL], lockAnswer({ status: 423, json: { holder: { toString: "x" } } }), "String() throws, and yargs reports it");
 twice("lock: the connection is closed without an answer", ["lock", "--url", URL], lockAnswer({ drop: true }), "a failed fetch is reported in bun's words", { tty: ADDRESS_SHOWN });
-twice("lock: a body shorter than its length", ["lock", "--url", URL], lockAnswer({ raw: "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\n{}" }), "a failed fetch is reported in bun's words");
+// The TypeScript throws from res.text() here, and on macOS and Windows bun's
+// report of it places its caret and names an inner frame or not, from one
+// run to the next: those two lines are left out of the comparison.
+twice("lock: a body shorter than its length", ["lock", "--url", URL], lockAnswer({ raw: "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\n{}" }), "a failed fetch is reported in bun's words", {
+  normalize: [["\\n +\\^\\n", "\n^\n"], ["\\n +at text \\(unknown:1:1\\)", ""]],
+});
 twice("lock: a header line that is not one", ["lock", "--url", URL], lockAnswer({ raw: "HTTP/1.1 200 OK\r\nnot a header\r\nContent-Length: 2\r\n\r\n{}" }), "how bun reads an odd header is not imitated", { tty: ADDRESS_SHOWN });
 twice("lock: a 1xx before the answer", ["lock", "--url", URL], lockAnswer({ raw: "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}" }), "an interim answer is not imitated");
 

@@ -12,9 +12,11 @@
 //! `--owner`, `lock renew|release` without a lease), and the `--help` of the
 //! program and of each command (rs/src/help.rs), on the systems
 //! `machine::platform_is_proven` names. Each works out its whole answer
-//! first and declines (`HandBack`) before any of it shows. `serve`, `tray`,
-//! the requests that change something (`lock acquire|renew|release`,
-//! `ahk-repl`) and every other command line go to the JavaScript.
+//! first and declines (`HandBack`) before any of it shows, and so does an
+//! answer bun would not get out whole for want of room in a pipe
+//! (rs/src/room.rs). `serve`, `tray`, the requests that change something
+//! (`lock acquire|renew|release`, `ahk-repl`) and every other command line
+//! go to the JavaScript.
 
 mod args;
 mod client;
@@ -25,6 +27,7 @@ mod js_fallback;
 mod json;
 mod machine;
 mod redact;
+mod room;
 mod url;
 #[cfg(test)]
 mod vectors;
@@ -43,11 +46,11 @@ fn native() -> bool {
 /// something.
 pub use js_fallback::HandBack;
 
-/// Everything a ported command prints, worked out before any of it is.
+/// Everything a ported command prints, worked out before any of it is:
+/// the TypeScript's writes, in its order, and the exit code.
 #[derive(Debug, Default)]
 pub struct Answer {
-    pub stdout: Vec<u8>,
-    pub stderr: Vec<u8>,
+    pub writes: Vec<room::Write>,
     pub code: i32,
 }
 
@@ -71,11 +74,17 @@ fn answer(args: &[String]) -> Result<Answer, HandBack> {
     }
     let invocation = args::recognise(args).ok_or(HandBack)?;
     let machine = machine::Machine::read()?;
-    match invocation {
+    let answer = match invocation {
         args::Invocation::Help(page) => help::answer(page, &machine),
         args::Invocation::Lock(lock) => client::lock(&lock, &machine),
         args::Invocation::AhkRepl(repl) => client::ahk_repl(&repl, &machine),
+    }?;
+    // bun loses what a pipe has no room for (rs/src/room.rs): where that
+    // may happen, the JavaScript answers, and loses the same.
+    if !room::certain(&answer.writes) {
+        return Err(HandBack);
     }
+    Ok(answer)
 }
 
 /// Prints and exits. A reader that has gone away is not an error, as it is
@@ -83,10 +92,17 @@ fn answer(args: &[String]) -> Result<Answer, HandBack> {
 fn finish(answer: Answer) -> ! {
     use std::io::Write as _;
 
-    let mut stderr = std::io::stderr().lock();
-    let _ = stderr.write_all(&answer.stderr).and_then(|()| stderr.flush());
-    drop(stderr);
-    let mut stdout = std::io::stdout().lock();
-    let _ = stdout.write_all(&answer.stdout).and_then(|()| stdout.flush());
+    for write in &answer.writes {
+        let _ = match write.stream {
+            room::Stream::Out => {
+                let mut stdout = std::io::stdout().lock();
+                stdout.write_all(&write.bytes).and_then(|()| stdout.flush())
+            }
+            room::Stream::Err => {
+                let mut stderr = std::io::stderr().lock();
+                stderr.write_all(&write.bytes).and_then(|()| stderr.flush())
+            }
+        };
+    }
     std::process::exit(answer.code)
 }

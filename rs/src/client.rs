@@ -23,6 +23,7 @@ use crate::http;
 use crate::json::{self, Fail, Json};
 use crate::machine::Machine;
 use crate::redact;
+use crate::room::{Kind, Stream, Write};
 use crate::url::{self, Url};
 use crate::{Answer, HandBack};
 
@@ -40,23 +41,28 @@ impl<'a> Out<'a> {
         Ok(Out { machine, secrets: redact::known(&machine.env)?, answer: Answer::default() })
     }
 
+    fn push(&mut self, stream: Stream, kind: Kind, bytes: Vec<u8>) {
+        self.answer.writes.push(Write { stream, kind, bytes });
+    }
+
     /// `console.log(text)`
     pub fn log(&mut self, text: &str) {
-        self.answer.stdout.extend_from_slice(redact::redact(text, &self.secrets).as_bytes());
-        self.answer.stdout.push(b'\n');
+        let line = format!("{}\n", redact::redact(text, &self.secrets));
+        self.push(Stream::Out, Kind::Console, line.into_bytes());
     }
 
     /// `console.error(text)`, when bun would not colour it.
     pub fn error(&mut self, text: &str) -> Result<(), HandBack> {
         self.machine.plain_stderr()?;
-        self.answer.stderr.extend_from_slice(redact::redact(text, &self.secrets).as_bytes());
-        self.answer.stderr.push(b'\n');
+        let line = format!("{}\n", redact::redact(text, &self.secrets));
+        self.push(Stream::Err, Kind::Console, line.into_bytes());
         Ok(())
     }
 
-    /// `process.stderr.write(text)`
+    /// `process.stderr.write(text)`, which the TypeScript follows with
+    /// `process.exit`.
     fn write_stderr(&mut self, text: &str) {
-        self.answer.stderr.extend_from_slice(text.as_bytes());
+        self.push(Stream::Err, Kind::Raw, text.as_bytes().to_vec());
     }
 
     pub fn exit(mut self, code: i32) -> Answer {

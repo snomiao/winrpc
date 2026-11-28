@@ -21,7 +21,8 @@
 //! macOS, also with a reader that is late) or /dev/null.
 //!
 //! So an answer is printed here only where every write that bun would not
-//! wait for certainly fits: into a regular file; on Linux and macOS a
+//! wait for certainly fits: into a regular file (on Windows a file on a
+//! disk, as GetFileType says); on Linux and macOS a
 //! terminal or /dev/null; on Linux a pipe or a Unix stream socket with room
 //! for it now (as dotenvdotenc's port works it out, its rs/src/out.rs).
 //! Anything else is handed back, which for `lock show` is after its GET:
@@ -206,26 +207,33 @@ mod os {
 
 #[cfg(windows)]
 mod os {
-    use std::fs::File;
-    use std::os::windows::io::AsHandle;
+    use std::os::windows::io::AsRawHandle;
 
     use super::Stream;
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetFileType(file: *mut core::ffi::c_void) -> u32;
+    }
+    const FILE_TYPE_DISK: u32 = 1;
 
     /// Not known here; taken to be.
     pub fn shared() -> bool {
         true
     }
 
-    /// Only a regular file is certain: a console cannot be told apart from
+    /// Only a file on a disk is certain: a console cannot be told apart from
     /// the pipe of an MSYS terminal without asking Windows more, and a
-    /// pipe's room is not known.
+    /// pipe's room is not known. (Rust's `metadata().is_file()` says yes
+    /// for a pipe too: it only means "not a directory or a link" there.)
     pub fn room(stream: Stream, _before: usize, _writes: usize) -> Option<usize> {
-        let owned = match stream {
-            Stream::Out => std::io::stdout().as_handle().try_clone_to_owned(),
-            Stream::Err => std::io::stderr().as_handle().try_clone_to_owned(),
+        let handle = match stream {
+            Stream::Out => std::io::stdout().as_raw_handle(),
+            Stream::Err => std::io::stderr().as_raw_handle(),
         };
-        let meta = File::from(owned.ok()?).metadata().ok()?;
-        meta.is_file().then_some(usize::MAX)
+        // SAFETY: GetFileType only looks at the handle, which stays open.
+        let disk = !handle.is_null() && unsafe { GetFileType(handle) } == FILE_TYPE_DISK;
+        disk.then_some(usize::MAX)
     }
 }
 

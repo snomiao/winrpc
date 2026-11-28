@@ -67,8 +67,11 @@ jobs:
       # rs/parity/proof.sh checks that the cases file and the recorded
       # vectors are what their generators write (the vectors with this bun),
       # then runs side by side the parity cases (rs/parity.json), every one
-      # behind a stand-in winrpc server on 127.0.0.1 (rs/parity/with-mock.mjs;
-      # no case reaches a real server, runs AutoHotkey or starts `serve`):
+      # behind a stand-in winrpc server on 127.0.0.1, some on ::1 as well
+      # (rs/parity/with-mock.mjs; no case reaches a real server, runs
+      # AutoHotkey or starts `serve`; the `room: …` cases print into a real
+      # pipe that is read once the command has ended, as bun loses what a
+      # pipe has no room for):
       # TypeScript against the binary (WINRPC_PACKAGE_ROOT lets it hand back
       # what it does not answer); the binary against a stand-in package,
       # where exactly the cases marked `handback` for that system may reach

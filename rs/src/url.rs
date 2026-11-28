@@ -52,7 +52,10 @@ pub enum Parsed {
 }
 
 impl Url {
-    /// `url.toString()` once username and password are cleared.
+    /// `url.toString()` once username and password are cleared. The client
+    /// prints it nowhere since a failed connection goes back; the tests
+    /// compare it with bun's.
+    #[cfg(test)]
     pub fn without_credentials(&self) -> String {
         let port = self.port.map(|p| format!(":{p}")).unwrap_or_default();
         format!("{}://{}{}{}", self.scheme, self.host, port, self.path)

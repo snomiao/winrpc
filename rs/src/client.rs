@@ -5,8 +5,9 @@
 //! Native:
 //! - every refusal of `resolveClient` (no URL; a URL `new URL` throws on);
 //! - `lock acquire` without `--owner`, `lock renew|release` without a lease;
-//! - `lock show`: the GET, and all four ways it ends (no connection, 423,
-//!   another status that is not ok, and the JSON printed again).
+//! - `lock show`: the GET, and the three ways an answer ends it (423,
+//!   another status that is not ok, and the JSON printed again). A failed
+//!   connection goes back: bun names it in words of its own.
 //!
 //! Back to the JavaScript, before anything was sent: every request that
 //! creates or changes something (`lock acquire|renew|release` with what
@@ -18,7 +19,7 @@
 //! reads: the server then sees it twice.
 
 use crate::args::{Action, AhkRepl, Lock};
-use crate::http::{self, Outcome};
+use crate::http;
 use crate::json::{self, Fail, Json};
 use crate::machine::Machine;
 use crate::redact;
@@ -72,8 +73,6 @@ impl<'a> Out<'a> {
 
 struct Client {
     url: Url,
-    /// `base`: the URL without user and password, and without a last `/`.
-    base: String,
     headers: Vec<(&'static str, String)>,
 }
 
@@ -104,9 +103,7 @@ fn resolve<'a>(target: Option<&str>, lease: Option<&str>, out: Out<'a>) -> Resul
     if let Some(lease) = lease.filter(|lease| !lease.is_empty()) {
         headers.push(("x-winrpc-lease", lease));
     }
-    let shown = url.without_credentials();
-    let base = shown.strip_suffix('/').unwrap_or(&shown).to_string();
-    Ok(Ok((Client { url, base, headers }, out)))
+    Ok(Ok((Client { url, headers }, out)))
 }
 
 pub fn lock(args: &Lock, machine: &Machine) -> Result<Answer, HandBack> {
@@ -152,11 +149,10 @@ fn show(client: &Client, mut out: Out<'_>) -> Result<Answer, HandBack> {
         return Err(HandBack);
     }
     let path = "/lock";
+    // `${base}${path}`, where base is the URL without user and password
+    // and without a last `/`.
     let target = format!("{}{path}", client.url.path.strip_suffix('/').unwrap_or(&client.url.path));
-    let response = match http::get(&client.url, &target, &client.headers)? {
-        Outcome::Refused => return out.fail(&format!("error: cannot reach winrpc at {} ({path}): ConnectionRefused", client.base), 1),
-        Outcome::Answer(response) => response,
-    };
+    let response = http::get(&client.url, &target, &client.headers)?;
     let text = String::from_utf8(response.body).map_err(|_| HandBack)?;
     if text.starts_with('\u{feff}') {
         return Err(HandBack);

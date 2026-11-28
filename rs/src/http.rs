@@ -7,14 +7,15 @@
 //! JavaScript makes it again and answers in its own way. The binary does
 //! not follow a redirect, does not decompress (it asks for nothing but
 //! sends no Accept-Encoding, so a server that keeps to HTTP sends none) and
-//! does not do TLS; it does not resolve names (`localhost` is 127.0.0.1, as
-//! bun 1.4.0 took it in the cases: a server on ::1 alone is not reached);
-//! and it goes back for:
+//! does not do TLS; it does not resolve names: `localhost` is 127.0.0.1
+//! (bun 1.4 on Linux takes it so; on macOS it reaches a server on ::1
+//! alone, where the binary is refused and hands back); and it goes back for:
 //!
 //! - a host that is not a canonical IPv4 address or `localhost`, an https
 //!   URL, or a proxy in the environment (see `Machine::proxy_set`);
-//! - a connection that fails other than by being refused, or that is
-//!   closed or stalls (30 s) before a whole answer has arrived;
+//! - a connection that fails (refused too: bun names that in words of its
+//!   own, which differ by system), or that is closed or stalls (30 s) before
+//!   a whole answer has arrived;
 //! - a status line other than `HTTP/1.x <3 digits> <reason>`, a status
 //!   outside 200-599 or a 3xx; a reason phrase that is empty or not plain
 //!   printable ASCII;
@@ -38,13 +39,6 @@ pub struct Response {
     pub body: Vec<u8>,
 }
 
-pub enum Outcome {
-    /// The connection was refused: bun's `fetch` rejects with code
-    /// ConnectionRefused.
-    Refused,
-    Answer(Response),
-}
-
 const WAIT: Duration = Duration::from_secs(30);
 const MAX_HEAD: usize = 64 * 1024;
 
@@ -56,14 +50,12 @@ fn address(url: &Url) -> Result<SocketAddr, HandBack> {
     Ok(SocketAddr::from((ip, url.port_or_default())))
 }
 
-/// `GET <base><path>` with these headers.
-pub fn get(url: &Url, target: &str, headers: &[(&str, String)]) -> Result<Outcome, HandBack> {
+/// `GET <base><path>` with these headers. A connection that fails, refused
+/// too, goes back: bun reports it in words of its own that differ by system
+/// (ConnectionRefused on Linux, ECONNREFUSED on macOS, bun 1.4).
+pub fn get(url: &Url, target: &str, headers: &[(&str, String)]) -> Result<Response, HandBack> {
     let address = address(url)?;
-    let mut stream = match TcpStream::connect_timeout(&address, WAIT) {
-        Ok(stream) => stream,
-        Err(err) if err.kind() == std::io::ErrorKind::ConnectionRefused => return Ok(Outcome::Refused),
-        Err(_) => return Err(HandBack),
-    };
+    let mut stream = TcpStream::connect_timeout(&address, WAIT).map_err(|_| HandBack)?;
     stream.set_read_timeout(Some(WAIT)).map_err(|_| HandBack)?;
     stream.set_write_timeout(Some(WAIT)).map_err(|_| HandBack)?;
     let host = match url.port {
@@ -76,7 +68,7 @@ pub fn get(url: &Url, target: &str, headers: &[(&str, String)]) -> Result<Outcom
     }
     request.push_str("Accept: */*\r\nConnection: close\r\n\r\n");
     stream.write_all(request.as_bytes()).map_err(|_| HandBack)?;
-    read_response(&mut stream).map(Outcome::Answer)
+    read_response(&mut stream)
 }
 
 struct Reader<'a> {

@@ -39,7 +39,7 @@ function add(name, args, o = {}) {
   const c = { name, args };
   if (o.mock) c.env = { ...(c.env || {}), WINRPC_PARITY_MOCK: JSON.stringify(o.mock) };
   if (o.env) c.env = { ...(c.env || {}), ...o.env };
-  for (const key of ["stdin", "files", "setup", "tty", "skip", "timeout", "normalize"]) if (o[key] !== undefined) c[key] = o[key];
+  for (const key of ["stdin", "files", "setup", "tty", "skip", "timeout", "normalize", "capture"]) if (o[key] !== undefined) c[key] = o[key];
   c.after = o.after ?? [o.twice ? LOG_ONCE_OR_TWICE : LOG];
   if (o.back) c.handback = o.back;
   cases.push(c);
@@ -62,6 +62,8 @@ const UNAUTHORIZED = { status: 401, body: "Unauthorized — include access token
 const HELD = { ok: false, error: "ui lease held", holder: "flow-a", label: "file picker", expires_at: "2026-11-27T10:02:00.000Z" };
 const GONE = { ok: false, error: "no such lease (expired or released)" };
 const lockAnswer = (reply) => ({ routes: { "GET /lock": reply } });
+// The command's output into regular files (rs/parity/with-mock.mjs "files").
+const inFiles = (mock) => ({ ...mock, files: true });
 const ok = (json) => lockAnswer({ status: 200, json });
 const URL = "http://MOCKHOST";
 const TOKEN_URL = `http://${FAKE}@MOCKHOST`;
@@ -163,7 +165,14 @@ add("lock: localhost", ["lock", "--url", `http://${FAKE}@localhost:MOCKPORT/`], 
 add("lock: the host 0.0.0.0", ["lock", "--url", `http://${FAKE}@0.0.0.0:MOCKPORT`], { mock: ok(LEASED), back: { win32: "Windows does not connect to 0.0.0.0, and a failed connection is reported in bun's words" } });
 add("lock: a port with leading zeros", ["lock", "--url", "http://127.0.0.1:0MOCKPORT"], { mock: ok(UNLOCKED) });
 const REFUSED = "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)";
-add("lock: localhost, the server on ::1 only", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { ...ok(UNLOCKED), listen: "::1" }, tty: ADDRESS_SHOWN, back: REFUSED });
+// For localhost bun asks 127.0.0.1 alone on Linux, and ::1 first on macOS
+// and Windows, 127.0.0.1 when ::1 refuses (rs/src/http.rs).
+add("lock: localhost, the server on ::1 only", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { ...ok(UNLOCKED), listen: "::1" }, tty: ADDRESS_SHOWN, back: { linux: "bun on Linux does not ask ::1, and a failed connection is reported in bun's words" } });
+const BOTH = { listen: "both", routes: { "GET /lock": { status: 200, json: { via: "v4" } } }, routes6: { "GET /lock": { status: 200, json: { via: "v6" } } } };
+add("lock: localhost, a server on ::1 and another on 127.0.0.1", ["lock", "--url", `http://${FAKE}@localhost:MOCKPORT`], { mock: BOTH });
+add("lock: LOCALHOST, servers on both", ["lock", "--url", "http://LOCALHOST:MOCKPORT/x/"], { mock: { ...BOTH, routes: { "GET /x/lock": { status: 200, json: { via: "v4" } } }, routes6: { "GET /x/lock": { status: 200, json: { via: "v6" } } } } });
+add("lock: 127.0.0.1, servers on both", ["lock", "--url", "http://127.0.0.1:MOCKPORT"], { mock: BOTH });
+add("lock: localhost, servers on both, a 410 from each", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { listen: "both", routes: { "GET /lock": { status: 410, body: "v4" } }, routes6: { "GET /lock": { status: 410, body: "v6" } } }, twice: true });
 add("lock: no server", ["lock", "--url", "http://127.0.0.1:9"], { back: REFUSED });
 add("lock: no server, the URL's token masked", ["lock", "--url", `http://${FAKE}@127.0.0.1:9`], { back: REFUSED });
 add("lock: no server, WINRPC_URL", ["lock"], { env: { WINRPC_URL: `http://${FAKE}@localhost:9/x/` }, back: REFUSED });
@@ -180,15 +189,21 @@ notOk("lock: a reason phrase of its own", ["lock", "--url", URL], lockAnswer({ s
 notOk("lock: 500 as onError writes it", ["lock", "--url", URL], lockAnswer({ status: 500, json: { ok: false, stdout: "", stderr: "boom", exitCode: 1 } }));
 notOk("lock: 400 with an empty body", ["lock", "--url", URL], lockAnswer({ status: 400, body: "" }));
 notOk("lock: 599", ["lock", "--url", URL], lockAnswer({ status: 599, reason: "Odd", body: "x" }));
-add("lock: 423 lease held", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: HELD }) });
-add("lock: 423 without a label", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: { ...HELD, label: undefined } }) });
-add("lock: 423 with an empty label", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: { ...HELD, label: "" } }) });
-add("lock: 423 that is not JSON", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, body: "locked" }) });
-add("lock: 423 with odd values", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: { holder: 7, label: [], expires_at: [1, null, "a", [2]] } }) });
-add("lock: 423 with objects", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: { holder: {}, label: { a: 1 }, expires_at: null } }) });
-add("lock: 423 with zero and false", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: { holder: false, label: 0, expires_at: true } }) });
-add("lock: 423 with an array", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: [HELD] }) });
-add("lock: 423 is written as it is, the token too", ["lock", "--url", TOKEN_URL], { mock: lockAnswer({ status: 423, json: { ...HELD, holder: `lease:${FAKE}` } }), env: { WINRPC_TOKEN: FAKE } });
+// The lease-held line of a 423 is written with process.stderr.write and
+// process.exit, which on macOS and Windows does not wait for a pipe
+// (rs/src/room.rs): these cases print into regular files, where bun loses
+// nothing and the binary answers on every system. Through a pipe, the
+// `room: …` cases.
+const held = (name, args, reply, o = {}) => add(name, args, { mock: inFiles(lockAnswer(reply)), ...o });
+held("lock: 423 lease held", ["lock", "--url", URL], { status: 423, json: HELD });
+held("lock: 423 without a label", ["lock", "--url", URL], { status: 423, json: { ...HELD, label: undefined } });
+held("lock: 423 with an empty label", ["lock", "--url", URL], { status: 423, json: { ...HELD, label: "" } });
+held("lock: 423 that is not JSON", ["lock", "--url", URL], { status: 423, body: "locked" });
+held("lock: 423 with odd values", ["lock", "--url", URL], { status: 423, json: { holder: 7, label: [], expires_at: [1, null, "a", [2]] } });
+held("lock: 423 with objects", ["lock", "--url", URL], { status: 423, json: { holder: {}, label: { a: 1 }, expires_at: null } });
+held("lock: 423 with zero and false", ["lock", "--url", URL], { status: 423, json: { holder: false, label: 0, expires_at: true } });
+held("lock: 423 with an array", ["lock", "--url", URL], { status: 423, json: [HELD] });
+held("lock: 423 is written as it is, the token too", ["lock", "--url", TOKEN_URL], { status: 423, json: { ...HELD, holder: `lease:${FAKE}` } }, { env: { WINRPC_TOKEN: FAKE } });
 add("lock: 200 that is not JSON", ["lock", "--url", URL], { mock: lockAnswer({ status: 200, body: "hello" }) });
 add("lock: 200 with an empty body", ["lock", "--url", URL], { mock: lockAnswer({ status: 200, body: "" }) });
 add("lock: 200 with JSON and something after it", ["lock", "--url", URL], { mock: lockAnswer({ status: 200, body: "{} x" }) });
@@ -410,6 +425,145 @@ bunEnv("a .env that is a symlink is read", { elsewhere: "WINRPC_URL=from-link\n"
 // On Windows a variable's name is one in any letter case; elsewhere these are two.
 add("lock: winrpc_url in lower case", ["lock"], { env: { winrpc_url: "lower-case-name" } });
 add("bun env: winrpc_url in lower case in .env.local", ["lock"], { files: { ".env.local": "winrpc_url=lower-case-name\n" } });
+
+
+// ═══════════════════════════ what bun gets out through a pipe ═══════════════════════════
+//
+// bun does not always wait for a pipe: what there is no room for when the
+// program ends is lost (rs/src/room.rs). On Linux that is every write; on
+// macOS and Windows the lease-held line of a 423 (process.stderr.write and
+// process.exit). The binary answers only where all of it certainly fits,
+// and hands the rest back, after its GET. These cases give the command a
+// real pipe, empty or already full, that is read only once the command has
+// ended (rs/parity/with-mock.mjs "pipe"), so that what bun loses does not
+// depend on how fast the reader is.
+const late = (stream, fill = 0) => ({ pipe: { stream, fill } });
+const FULL = 65536;
+// A JSON string that the client prints as exactly `bytes` bytes ("0…0" and
+// a newline). Digits, because the redaction's regular expression takes
+// time that grows with the square of a run of letters (both sides: 4 s for
+// 70,000 of them on a busy machine).
+const printedAs = (bytes) => ({ status: 200, json: `<0*${bytes - 3}>` });
+const LINUX_LOSES = { linux: "bun on Linux loses what the pipe has no room for" };
+const RAW = "process.stderr.write, then process.exit, loses what the pipe has no room for; its room is known on Linux only";
+const RAW_LOSES = { darwin: RAW, win32: RAW };
+add("room: 70,000 bytes of JSON into a pipe read late", ["lock", "--url", URL], { mock: { ...lockAnswer(printedAs(70000)), ...late("stdout") }, back: LINUX_LOSES, twice: true });
+add("room: 65,536 bytes of JSON into a pipe read late", ["lock", "--url", URL], { mock: { ...lockAnswer(printedAs(65536)), ...late("stdout") } });
+add("room: JSON into a full pipe read late", ["lock", "--url", URL], { mock: { ...ok(LEASED), ...late("stdout", FULL) }, back: LINUX_LOSES, twice: true });
+add("room: JSON into a pipe with 1,000 bytes waiting", ["lock", "--url", URL], { mock: { ...ok(LEASED), ...late("stdout", 1000) } });
+add("room: --help into a full pipe read late", ["--help"], { mock: late("stdout", FULL), back: LINUX_LOSES });
+add("room: --help into a pipe read late", ["lock", "--help"], { mock: late("stdout") });
+add("room: a refusal into a full pipe read late", ["lock"], { mock: late("stderr", FULL), back: LINUX_LOSES });
+add("room: a refusal into a pipe read late", ["lock", "--url", "nope"], { mock: late("stderr") });
+add("room: a 410 of 70,000 bytes into a pipe read late", ["lock", "--url", URL], { mock: { ...lockAnswer({ status: 410, body: "<1*70000>" }), ...late("stderr") }, back: LINUX_LOSES, twice: true });
+add("room: a 410 into a pipe read late", ["lock", "--url", URL], { mock: { ...lockAnswer({ status: 410, json: GONE }), ...late("stderr") }, twice: true });
+add("room: a 423 into a pipe read late", ["lock", "--url", URL], { mock: { ...lockAnswer({ status: 423, json: HELD }), ...late("stderr") }, back: RAW_LOSES, twice: true });
+add("room: a 423 of 70,000 bytes into a pipe read late", ["lock", "--url", URL], { mock: { ...lockAnswer({ status: 423, json: { ...HELD, holder: "<2*70000>" } }), ...late("stderr") }, back: "process.stderr.write, then process.exit, loses what the pipe has no room for", twice: true });
+add("room: a 423 into a full pipe read late", ["lock", "--url", URL], { mock: { ...lockAnswer({ status: 423, json: HELD }), ...late("stderr", FULL) }, back: "process.stderr.write, then process.exit, loses what the pipe has no room for", twice: true });
+// The stand-in's own pipes are Unix sockets on Linux (node makes them so),
+// whose room is taken to be 32 KiB at most.
+add("room: 32,000 bytes of JSON through the stand-in", ["lock", "--url", URL], { mock: lockAnswer(printedAs(32000)) });
+add("room: 40,000 bytes of JSON through the stand-in", ["lock", "--url", URL], { mock: lockAnswer(printedAs(40000)), back: { linux: "the room of a Unix socket is taken to be 32 KiB at most" }, twice: true });
+add("room: a 423 through the stand-in", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: HELD }), back: RAW_LOSES, twice: true });
+add("room: 200,000 bytes of JSON into a regular file", ["lock", "--url", URL], { mock: inFiles(lockAnswer(printedAs(200000))) });
+add("room: a 423 of 70,000 bytes into a regular file", ["lock", "--url", URL], { mock: inFiles(lockAnswer({ status: 423, json: { ...HELD, holder: "<2*70000>" } })) });
+
+// ═══════════════════════════ the verifier's cases ═══════════════════════════
+//
+// Written by the independent verification of the port (2026-11-28), and
+// kept as it wrote them, but for: the 423s and one very large answer print
+// into regular files (see `room: …`), and the two servers on ::1 and
+// 127.0.0.1 are the stand-in's own ("listen": "both") on a free port.
+
+const verify = (name, args, o = {}) => add(`verify: ${name}`, args, o);
+for (const p of ["/a@b/", "/a:b/", "/a;b=c/", "/!$&'()*+,/", "/~u/", "/.a/", "/a./", "/..a/", "/x/y@z:w"]) {
+  verify(`lock: the path ${p}`, ["lock", "--url", `${URL}${p}`], { mock: { routes: {} }, twice: true });
+}
+const raw = (name, text, o = {}) => verify(`lock: ${name}`, ["lock", "--url", URL], { mock: lockAnswer({ raw: text }), twice: true, ...o });
+raw("Content-Length with leading zeros", "HTTP/1.1 200 OK\r\nContent-Length: 0002\r\n\r\n{}");
+raw("a body longer than its Content-Length", "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}garbage");
+raw("charset=iso-8859-1 on a UTF-8 body", "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=iso-8859-1\r\nContent-Length: 12\r\n\r\n{\"a\":\"\u00e9\u00e9\"}");
+raw("Transfer-Encoding: Chunked with an upper-case size", "HTTP/1.1 200 OK\r\nTransfer-Encoding: Chunked\r\n\r\n000A\r\n{\"a\":1234}\r\n0\r\n\r\n");
+raw("headers without a space, with _, given twice", "HTTP/1.1 200 OK\r\nContent-Length:2\r\nX_Y: 1\r\nContent-Type: a\r\nContent-Type: b\r\n\r\n{}");
+raw("a 299 of its own", "HTTP/1.1 299 Whatever\r\nContent-Length: 7\r\n\r\n{\"a\":1}");
+raw("204 with Content-Length 0", "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n");
+raw("205 without a length", "HTTP/1.1 205 Reset Content\r\n\r\n");
+raw("HTTP/1.0 keep-alive with a length", "HTTP/1.0 200 OK\r\nConnection: keep-alive\r\nContent-Length: 2\r\n\r\n{}");
+raw("404 with the reason OK", "HTTP/1.1 404 OK\r\nContent-Length: 3\r\n\r\nabc");
+raw("a body of CR LF only", "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n\r\n");
+raw("a 401 with Basic and a CRLF body", "HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"winrpc\"\r\nContent-Length: 9\r\n\r\nline\r\nend");
+verify("lock: the token in a reason phrase is masked", ["lock", "--url", URL], { mock: lockAnswer({ status: 503, reason: `Down ${FAKE}`, body: "x" }), env: { WINRPC_TOKEN: FAKE }, twice: true });
+
+const body = (name, text, o = {}) => {
+  const { status = 200, files = status === 423, ...rest } = o;
+  const mock = lockAnswer({ status, body: text });
+  verify(`lock: ${name}`, ["lock", "--url", URL], { mock: files ? inFiles(mock) : mock, twice: true, ...rest });
+};
+body("numbers in every spelling", "[1E2,-0.0,0e5,100e-2,1e-400,-1e-400,0.1e1,123e0,5e15,9007199254740991,-9007199254740992,1E+2,2e-0]");
+body("escaped keys that are one key", '{"\\u0061":1,"a":2,"\\u0000":"\\u0000\\u2028\\u2029\\ud83d\\ude00","\\\\":"\\/"}');
+// Printed, this is 125,001 bytes: through a pipe more than certainly fits.
+body("nesting 250 deep", `${"[".repeat(250)}${"]".repeat(250)}`, { files: true });
+body("an object of 2000 keys in reverse index order", `{${Array.from({ length: 2000 }, (_, i) => `"${1999 - i}":${i}`).join(",")},"x":1}`);
+body("423: -0, 0.0 and 1E2", '{"holder":-0,"label":"0.0","expires_at":1E2}', { status: 423 });
+body("423: a key twice, -0.0, nested arrays", '{"holder":"a","holder":"b","label":-0.0,"expires_at":[[],[[]],null,true]}', { status: 423 });
+body("423: %s, a NUL and valueOf", '{"holder":"%s %d\\u0000x","label":{"valueOf":1},"expires_at":""}', { status: 423 });
+body("423: a string", '"held"', { status: 423 });
+body("423: a number", "5", { status: 423 });
+body("423: toString beside the holder", '{"toString":1,"holder":"x"}', { status: 423 });
+body("423: infinities", '{"label":1e400,"holder":-1e400}', { status: 423 });
+body("423: a fraction goes back", '{"holder":1e-7}', { status: 423, back: "JavaScript's number formatting is not ported beyond integers" });
+body("423: toString deep inside goes back", '{"holder":[[{"toString":1}]]}', { status: 423, back: "String() throws, and yargs reports it" });
+
+verify("lock: overlapping secrets of the token and the URL", ["lock", "--url", URL], {
+  mock: ok({ a: "x fake-aaaabbbbcccc y fake-aaaabbbb z http://fake-aaaabbbbcccc@h \u00e9://u@h a://u\u00a0v@h" }),
+  env: { WINRPC_TOKEN: "fake-aaaabbbb", WINRPC_URL: "http://fake-aaaabbbbcccc@127.0.0.1:9" },
+});
+verify("lock: two secrets of the same length", ["lock", "--url", URL], { mock: ok({ a: "ab12345678ab 12345678ab ab12345678" }), env: { WINRPC_TOKEN: "12345678ab", WINRPC_URL: "http://ab12345678@127.0.0.1:9" } });
+verify("lock: an invalid URL holding a URL with a user", ["lock", "--url", "bad url http://tok@x"], { env: { WINRPC_URL: "http://user:password@127.0.0.1:9" } });
+verify("lock: a token padded with tabs and newlines is masked in the error", ["lock", "--url", "12345678"], { env: { WINRPC_TOKEN: "\t  12345678\n" } });
+
+verify("lock: acquire after its options, an invalid URL", ["lock", "--url=notaurl", "--owner=me", "acquire"]);
+verify("lock: renew after --wait, no lease", ["lock", "--wait", "5", "--url", URL, "renew"]);
+verify("lock: release with the lease toString, an invalid URL", ["lock", "release", "toString", "--url", "notaurl"]);
+verify("lock: renew 0, an invalid URL", ["lock", "renew", "0", "--url", "notaurl"]);
+verify("lock: acquire --owner 0, an invalid URL", ["lock", "acquire", "--owner", "0", "--url", "notaurl"]);
+verify("lock: show with a fractional --ttl", ["lock", "show", "--ttl", "0.5", "--url", URL], { mock: ok(UNLOCKED) });
+verify("lock: --label= goes back", ["lock", "--label=", "--url", "notaurl"], { back: "yargs's own reading of the command line" });
+verify("lock: --label=-x goes back", ["lock", "--label=-x", "--url", "notaurl"], { back: "yargs's own reading of the command line" });
+verify("ahk-repl: --lease= before an invalid URL", ["ahk-repl", "--lease=x", "notaurl"], { stdin: "MsgBox 1\n" });
+verify("ahk-repl: a URL that yargs could read as a number", ["ahk-repl", "1e3"], { stdin: "" });
+verify("ahk-repl: a URL that is __proto__", ["ahk-repl", "__proto__"], { stdin: "" });
+
+for (const [what, env, back] of [
+  ["LANG=en_US@euro", { LANG: "en_US@euro" }],
+  ["LANG=en_GB:de", { LANG: "en_GB:de" }],
+  ["LC_ALL=C.UTF-8 over LANG=de", { LC_ALL: "C.UTF-8", LANG: "de_DE.UTF-8" }],
+  ["LANG=en_US over LANGUAGE=de", { LANG: "en_US.UTF-8", LANGUAGE: "de" }],
+  ["COLUMNS=40", { COLUMNS: "40" }],
+  ["TERM=dumb and NO_COLOR", { TERM: "dumb", NO_COLOR: "1" }],
+  ["JSC_useJIT=0", { JSC_useJIT: "0" }],
+  ["LANG=EN_us goes back", { LANG: "EN_us" }, "a locale spelling not compared"],
+  ["PORT=012371 goes back", { PORT: "012371" }, "the default of --port comes from PORT"],
+  // The home directory is USERPROFILE on Windows, which the runner sets.
+  ["HOME unset goes back", { HOME: null }, { linux: "no home directory", darwin: "no home directory" }],
+]) {
+  // python (the runner's terminal.py) cannot start under LANG=EN_us on
+  // macOS: that case keeps pipes in a --tty run.
+  verify(`help: --help with ${what}`, ["--help"], { env, back, tty: what.startsWith("LANG=EN_us") ? false : undefined });
+}
+verify("help: ahk-repl --help, WINRPC_URL=0 is set", ["ahk-repl", "--help"], { env: { WINRPC_URL: "0" } });
+verify("help: serve --help, HOST=0.0.0.0 from .env.local", ["serve", "--help"], { files: { ".env.local": "HOST=0.0.0.0\nPORT=12371\n" } });
+
+verify("bun: a tsconfig.json with jsx react", ["lock"], { files: { "tsconfig.json": '{"compilerOptions": {"jsx": "react", "target": "ES2022"}}\n' } });
+verify("bun: a package.json with a BOM in the parent", ["lock"], { setup: ["printf '\\357\\273\\277{}' > ../package.json"], back: "a package.json in a shape not compared with bun" });
+verify("bun env: a dangling .env link goes back", ["lock"], { setup: ["ln -s nowhere .env"], back: "a .env that is not a file", skip: { win32: "Git Bash's ln copies the file instead of linking it" } });
+verify("bun env: CRLF and a value with spaces inside quotes and a comment", ["lock"], { files: { ".env": "# c\r\nWINRPC_URL='a  b # c'  # d\r\nWINRPC_TOKEN=\"  long-token-x  \"\r\n" } });
+
+verify("ahk-repl: no URL, stdin a terminal", ["ahk-repl"], { tty: "stdin", skip: NO_TTY_ON_WINDOWS });
+verify("lock: an invalid URL, stdin a terminal", ["lock", "--url", "notaurl"], { tty: "stdin", skip: NO_TTY_ON_WINDOWS });
+verify("help: lock --help, stdin a terminal", ["lock", "--help"], { tty: "stdin", skip: NO_TTY_ON_WINDOWS });
+
+verify("lock: localhost, servers on both ::1 and 127.0.0.1", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: BOTH });
 
 const json = `${JSON.stringify({ env: { WINRPC_PARITY_LOG: "<ROOT>/requests.log" }, cases }, null, 2)}\n`;
 if (process.argv.includes("--check")) {

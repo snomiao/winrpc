@@ -9,14 +9,25 @@
 //! sends no Accept-Encoding, so a server that keeps to HTTP sends none) and
 //! does not do TLS; it does not resolve names. `localhost` is where bun
 //! goes for it (measured with a server on ::1 and another on 127.0.0.1,
-//! the same port): on Linux 127.0.0.1 alone (bun 1.4.0 is refused where
-//! only ::1 listens); on macOS (bun 1.4.4) and Windows (bun 1.4.2) ::1
-//! first, and 127.0.0.1 when ::1 refuses. That holds for the hosts file
-//! these systems come with (see `localhost`); another goes back. And it
-//! goes back for:
+//! the same port) on macOS (bun 1.4.4, 1.4.5) and Windows (bun 1.4.2,
+//! 1.4.5): ::1 first, and 127.0.0.1 when ::1 refuses. That holds for the
+//! hosts file these systems come with (see `localhost`); another goes back.
+//! On Linux `localhost` goes back, because where bun goes there depends on
+//! bun's version and on the machine. bun 1.4.0 asks getaddrinfo with
+//! AF_UNSPEC, SOCK_STREAM and AI_ADDRCONFIG, and glibc counts no loopback
+//! address for AI_ADDRCONFIG: where ::1 is the only IPv6 address (a
+//! container on an IPv4-only network) it asks for IPv4 alone and gets
+//! 127.0.0.1, even from a hosts file that names ::1 (measured: refused
+//! where only ::1 listens); where any other IPv6 address is configured, a
+//! link-local one too, it gets both, in the order of gai.conf (::1 first
+//! by default). bun 1.4.1 and later (oven-sh/bun#38818) answer `localhost`
+//! themselves, ::1 then 127.0.0.1, whatever /etc/hosts or gai.conf say
+//! (measured with 1.4.5 on the same machine: ::1). The binary cannot tell
+//! which bun the JavaScript will run on. And it goes back for:
 //!
-//! - a host that is not a canonical IPv4 address or `localhost`, an https
-//!   URL, or a proxy in the environment (see `Machine::proxy_set`);
+//! - a host that is not a canonical IPv4 address or `localhost`, `localhost`
+//!   on Linux, an https URL, or a proxy in the environment (see
+//!   `Machine::proxy_set`);
 //! - a connection that fails (refused too: bun names that in words of its
 //!   own, which differ by system), that takes more than 30 s, or that is
 //!   closed or stalls (30 s) before a whole answer has arrived. bun waits
@@ -72,11 +83,14 @@ fn hosts_file() -> Result<Option<String>, HandBack> {
     }
 }
 
-/// Where bun goes for `localhost`, for a hosts file of the shape each
-/// system comes with: Linux names 127.0.0.1 (and ::1) for it, macOS both,
-/// Windows neither (its resolver answers for localhost itself). Any other
-/// shape goes back.
+/// Where bun goes for `localhost`, for a hosts file of the shape macOS and
+/// Windows come with: macOS names 127.0.0.1 and ::1 for it, Windows neither
+/// (its resolver answers for localhost itself). Any other shape goes back,
+/// and so does every one on Linux (see the top of this file).
 fn localhost(hosts: &Option<String>) -> Result<Vec<IpAddr>, HandBack> {
+    if cfg!(target_os = "linux") {
+        return Err(HandBack);
+    }
     let mut named: Vec<&str> = Vec::new();
     for line in hosts.as_deref().unwrap_or("").lines() {
         let line = line.split('#').next().unwrap_or("");
@@ -88,9 +102,7 @@ fn localhost(hosts: &Option<String>) -> Result<Vec<IpAddr>, HandBack> {
     }
     let only = |wanted: &[&str]| named.len() == wanted.len() && wanted.iter().all(|address| named.contains(address));
     let (v4, v6) = (IpAddr::V4(Ipv4Addr::LOCALHOST), IpAddr::V6(Ipv6Addr::LOCALHOST));
-    if cfg!(target_os = "linux") && hosts.is_some() && (only(&["127.0.0.1"]) || only(&["127.0.0.1", "::1"])) {
-        Ok(vec![v4])
-    } else if (cfg!(target_os = "macos") && only(&["127.0.0.1", "::1"])) || (cfg!(windows) && named.is_empty()) {
+    if (cfg!(target_os = "macos") && only(&["127.0.0.1", "::1"])) || (cfg!(windows) && named.is_empty()) {
         Ok(vec![v6, v4])
     } else {
         Err(HandBack)
@@ -113,7 +125,8 @@ fn connect(addresses: &[SocketAddr]) -> Result<TcpStream, HandBack> {
 
 /// `GET <base><path>` with these headers. A connection that fails, refused
 /// too, goes back: bun reports it in words of its own that differ by system
-/// (ConnectionRefused on Linux, ECONNREFUSED on macOS, bun 1.4).
+/// and by version (ConnectionRefused on Linux with bun 1.4.0, ECONNREFUSED
+/// there with 1.4.5 and on macOS).
 pub fn get(url: &Url, target: &str, headers: &[(&str, String)]) -> Result<Response, HandBack> {
     let mut stream = connect(&addresses(url)?)?;
     stream.set_read_timeout(Some(WAIT)).map_err(|_| HandBack)?;
@@ -310,11 +323,10 @@ mod tests {
         let windows = "# localhost name resolution is handled within DNS itself.\n#\t127.0.0.1       localhost\n#\t::1             localhost\n127.0.0.1 webcode.localhost\n";
         let odd = ["127.0.1.1 localhost\n127.0.0.1 localhost\n", "::1 localhost\n", "127.0.0.1 localhost\n::1 localhost\nfe80::1%lo0 localhost\n", "10.0.0.1 LocalHost\n"];
         if cfg!(target_os = "linux") {
-            assert_eq!(hosts(linux), Ok(vec![v4]));
-            assert_eq!(hosts(macos), Ok(vec![v4]));
-            assert_eq!(hosts("127.0.0.1 localhost # x\n"), Ok(vec![v4]));
+            for text in [linux, macos, windows, "127.0.0.1 localhost # x\n", "127.0.0.1 localhost\n", ""] {
+                assert_eq!(hosts(text), Err(HandBack), "{text:?}");
+            }
             assert_eq!(localhost(&None), Err(HandBack));
-            assert_eq!(hosts(windows), Err(HandBack));
         }
         if cfg!(target_os = "macos") {
             assert_eq!(hosts(macos), Ok(vec![v6, v4]));

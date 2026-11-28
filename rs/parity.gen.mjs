@@ -28,6 +28,10 @@ const out = path.join(here, "parity.json");
 const cases = [];
 const LOG = "cat <ROOT>/requests.log";
 const LOG_ONCE_OR_TWICE = "sort -u <ROOT>/requests.log";
+// What the JavaScript prints of these names the stand-in's address, which
+// rs/parity/with-mock.mjs puts back as MOCKHOST only in what goes through
+// a pipe: they keep pipes in the run with --tty stdout,stderr too.
+const ADDRESS_SHOWN = false;
 const NO_TTY_ON_WINDOWS = { win32: "no terminal on Windows (the runner's pseudo-terminal needs Linux or macOS)" };
 
 function add(name, args, o = {}) {
@@ -155,19 +159,23 @@ add("lock: two slashes inside the path", ["lock", "--url", "http://MOCKHOST/a//b
 add("lock: upper-case scheme and host", ["lock", "--url", "HTTP://LOCALHOST:MOCKPORT"], { mock: ok(UNLOCKED) });
 add("lock: localhost", ["lock", "--url", `http://${FAKE}@localhost:MOCKPORT/`], { mock: ok(UNLOCKED) });
 add("lock: a port with leading zeros", ["lock", "--url", "http://127.0.0.1:0MOCKPORT"], { mock: ok(UNLOCKED) });
-add("lock: localhost, the server on ::1 only", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { ...ok(UNLOCKED), listen: "::1" } });
+add("lock: localhost, the server on ::1 only", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { ...ok(UNLOCKED), listen: "::1" }, tty: ADDRESS_SHOWN });
 add("lock: no server", ["lock", "--url", "http://127.0.0.1:9"]);
 add("lock: no server, the URL's token masked", ["lock", "--url", `http://${FAKE}@127.0.0.1:9`]);
 add("lock: no server, WINRPC_URL", ["lock"], { env: { WINRPC_URL: `http://${FAKE}@localhost:9/x/` } });
 
-// The answers, as the client prints them.
-add("lock: 401", ["lock", "--url", URL], { mock: lockAnswer(UNAUTHORIZED) });
-add("lock: 404 of another server", ["lock", "--url", URL], { mock: lockAnswer({ status: 404, body: "<html><body>Not Found</body></html>\n", headers: [["Content-Type", "text/html"]] }) });
-add("lock: 410 with JSON", ["lock", "--url", URL], { mock: lockAnswer({ status: 410, json: GONE }) });
-add("lock: a reason phrase of its own", ["lock", "--url", URL], { mock: lockAnswer({ status: 503, reason: "Back Soon, Maybe", body: "{\"ok\":false}" }) });
-add("lock: 500 as onError writes it", ["lock", "--url", URL], { mock: lockAnswer({ status: 500, json: { ok: false, stdout: "", stderr: "boom", exitCode: 1 } }) });
-add("lock: 400 with an empty body", ["lock", "--url", URL], { mock: lockAnswer({ status: 400, body: "" }) });
-add("lock: 599", ["lock", "--url", URL], { mock: lockAnswer({ status: 599, reason: "Odd", body: "x" }) });
+// The answers, as the client prints them. An answer that is not ok goes to
+// console.error, which bun colours on a terminal: there (in the run with
+// --tty stdout,stderr) the binary hands it back after its GET, and the
+// server is asked twice. Those cases compare which requests were made.
+const notOk = (name, args, mock, o = {}) => add(name, args, { mock, twice: true, ...o });
+notOk("lock: 401", ["lock", "--url", URL], lockAnswer(UNAUTHORIZED));
+notOk("lock: 404 of another server", ["lock", "--url", URL], lockAnswer({ status: 404, body: "<html><body>Not Found</body></html>\n", headers: [["Content-Type", "text/html"]] }));
+notOk("lock: 410 with JSON", ["lock", "--url", URL], lockAnswer({ status: 410, json: GONE }));
+notOk("lock: a reason phrase of its own", ["lock", "--url", URL], lockAnswer({ status: 503, reason: "Back Soon, Maybe", body: "{\"ok\":false}" }));
+notOk("lock: 500 as onError writes it", ["lock", "--url", URL], lockAnswer({ status: 500, json: { ok: false, stdout: "", stderr: "boom", exitCode: 1 } }));
+notOk("lock: 400 with an empty body", ["lock", "--url", URL], lockAnswer({ status: 400, body: "" }));
+notOk("lock: 599", ["lock", "--url", URL], lockAnswer({ status: 599, reason: "Odd", body: "x" }));
 add("lock: 423 lease held", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: HELD }) });
 add("lock: 423 without a label", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: { ...HELD, label: undefined } }) });
 add("lock: 423 with an empty label", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: { ...HELD, label: "" } }) });
@@ -197,7 +205,7 @@ add("lock: null as the answer", ["lock", "--url", URL], { mock: lockAnswer({ sta
 add("lock: not quite JSON", ["lock", "--url", URL], { mock: lockAnswer({ status: 200, body: '{"a":1,}' }) });
 add("lock: a control character in a string is not JSON", ["lock", "--url", URL], { mock: lockAnswer({ status: 200, body: '{"a":"x\ty"}' }) });
 add("lock: the token in the answer is masked", ["lock", "--url", URL], { mock: lockAnswer({ status: 200, json: { echo: `Bearer ${FAKE}`, url: `http://${FAKE}@winbox:12371/x` } }), env: { WINRPC_TOKEN: FAKE } });
-add("lock: the token in an error is masked", ["lock", "--url", TOKEN_URL], { mock: lockAnswer({ status: 410, body: `no lease for ${FAKE}` }) });
+notOk("lock: the token in an error is masked", ["lock", "--url", TOKEN_URL], lockAnswer({ status: 410, body: `no lease for ${FAKE}` }));
 add("lock: a user part of another URL in the answer is masked", ["lock", "--url", URL], { mock: lockAnswer({ status: 200, json: { see: "ftp://anon@files.example/x" } }) });
 add("lock: a token shorter than eight characters is not masked", ["lock", "--url", URL], { mock: lockAnswer({ status: 200, json: { echo: "fake123" } }), env: { WINRPC_TOKEN: "fake123" } });
 add("lock: the longest secret is masked first", ["lock", "--url", "http://fake-user:fake-user-long@MOCKHOST"], { mock: lockAnswer({ status: 200, json: { a: "fake-user-long fake-user" } }), env: { WINRPC_URL: "http://fake-user:fake-user-long@127.0.0.1:9" } });
@@ -215,13 +223,13 @@ twice("lock: an integer beyond 2^53", ["lock", "--url", URL], lockAnswer({ statu
 twice("lock: a lone surrogate", ["lock", "--url", URL], lockAnswer({ status: 200, body: '{"s":"\\ud800"}' }), "a string with half a surrogate pair is not held");
 twice("lock: a byte order mark", ["lock", "--url", URL], lockAnswer({ status: 200, body: "﻿{}" }), "whether fetch drops a byte order mark is not imitated");
 twice("lock: 423 with a holder JavaScript cannot print", ["lock", "--url", URL], lockAnswer({ status: 423, json: { holder: { toString: "x" } } }), "String() throws, and yargs reports it");
-twice("lock: the connection is closed without an answer", ["lock", "--url", URL], lockAnswer({ drop: true }), "a failed fetch is reported in bun's words");
+twice("lock: the connection is closed without an answer", ["lock", "--url", URL], lockAnswer({ drop: true }), "a failed fetch is reported in bun's words", { tty: ADDRESS_SHOWN });
 twice("lock: a body shorter than its length", ["lock", "--url", URL], lockAnswer({ raw: "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\n{}" }), "a failed fetch is reported in bun's words");
-twice("lock: a header line that is not one", ["lock", "--url", URL], lockAnswer({ raw: "HTTP/1.1 200 OK\r\nnot a header\r\nContent-Length: 2\r\n\r\n{}" }), "how bun reads an odd header is not imitated");
+twice("lock: a header line that is not one", ["lock", "--url", URL], lockAnswer({ raw: "HTTP/1.1 200 OK\r\nnot a header\r\nContent-Length: 2\r\n\r\n{}" }), "how bun reads an odd header is not imitated", { tty: ADDRESS_SHOWN });
 twice("lock: a 1xx before the answer", ["lock", "--url", URL], lockAnswer({ raw: "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}" }), "an interim answer is not imitated");
 
 // Where the binary goes back before it asks.
-add("lock: http_proxy", ["lock", "--url", URL], { mock: ok(UNLOCKED), env: { http_proxy: "http://127.0.0.1:9" }, back: "fetch may go through a proxy" });
+add("lock: http_proxy", ["lock", "--url", URL], { mock: ok(UNLOCKED), env: { http_proxy: "http://127.0.0.1:9" }, back: "fetch may go through a proxy", tty: ADDRESS_SHOWN });
 add("lock: HTTPS_PROXY", ["lock", "--url", URL], { mock: ok(UNLOCKED), env: { HTTPS_PROXY: "http://127.0.0.1:9" }, back: "fetch may go through a proxy" });
 add("lock: NO_PROXY", ["lock", "--url", URL], { mock: ok(UNLOCKED), env: { NO_PROXY: "*" }, back: "fetch may go through a proxy" });
 add("lock: an https URL", ["lock", "--url", "https://127.0.0.1:9"], { back: "no TLS in the binary" });
@@ -232,7 +240,7 @@ add("lock: a 410 to a terminal", ["lock", "--url", URL], { mock: lockAnswer({ st
 add("lock: a 423 to a terminal", ["lock", "--url", URL], { mock: lockAnswer({ status: 423, json: HELD }), tty: "stderr", skip: NO_TTY_ON_WINDOWS });
 add("lock: FORCE_COLOR and a 200", ["lock", "--url", URL], { mock: ok(UNLOCKED), env: { FORCE_COLOR: "1" } });
 add("lock: FORCE_COLOR and a 410", ["lock", "--url", URL], { mock: lockAnswer({ status: 410, json: GONE }), env: { FORCE_COLOR: "1" }, back: "bun colours console.error under FORCE_COLOR", twice: true });
-add("lock: NO_COLOR and a 410", ["lock", "--url", URL], { mock: lockAnswer({ status: 410, json: GONE }), env: { NO_COLOR: "1" } });
+notOk("lock: NO_COLOR and a 410", ["lock", "--url", URL], lockAnswer({ status: 410, json: GONE }), { env: { NO_COLOR: "1" } });
 
 // ═══════════════════════════ what a client says before it sends anything ═══════════════════════════
 
@@ -330,7 +338,7 @@ bunEnv("files in the parent directory are not read", {}, { setup: ["echo WINRPC_
 bunEnv("the token and the URL from .env.local", { ".env.local": `WINRPC_URL=${URL}\nWINRPC_TOKEN=${FAKE}\n` }, { mock: ok(LEASED) });
 bunEnv("the URL with its token from .env.local, as the banner says", { ".env.local": `WINRPC_URL=${TOKEN_URL}\n` }, { mock: ok(UNLOCKED) });
 bunEnv("WINRPC_LEASE from .env", { ".env": "WINRPC_LEASE=0123456789abcdef0123456789abcdef\n", ".env.local": `WINRPC_URL=${TOKEN_URL}\n` }, { mock: ok(LEASED) });
-bunEnv("WINRPC_TOKEN from .env masks the token in what is printed", { ".env": `WINRPC_TOKEN=${FAKE}\n` }, { mock: lockAnswer({ status: 410, body: `no lease for ${FAKE}` }) });
+bunEnv("WINRPC_TOKEN from .env masks the token in what is printed", { ".env": `WINRPC_TOKEN=${FAKE}\n` }, { mock: lockAnswer({ status: 410, body: `no lease for ${FAKE}` }), twice: true });
 cases[cases.length - 1].args.push("--url", URL);
 for (const [what, line, back] of [
   ["a bare value", "WINRPC_URL=dir/keys.txt"],

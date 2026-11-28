@@ -1076,6 +1076,7 @@
       "env": {
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}},\"listen\":\"::1\"}"
       },
+      "tty": false,
       "after": [
         "cat <ROOT>/requests.log"
       ]
@@ -1125,7 +1126,7 @@
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":401,\"body\":\"Unauthorized — include access token in URL: http://<token>@host:port\",\"headers\":[[\"Content-Type\",\"text/plain;charset=utf-8\"],[\"WWW-Authenticate\",\"Basic realm=\\\"winrpc\\\"\"]]}}}"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {
@@ -1139,7 +1140,7 @@
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":404,\"body\":\"<html><body>Not Found</body></html>\\n\",\"headers\":[[\"Content-Type\",\"text/html\"]]}}}"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {
@@ -1153,7 +1154,7 @@
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":410,\"json\":{\"ok\":false,\"error\":\"no such lease (expired or released)\"}}}}"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {
@@ -1167,7 +1168,7 @@
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":503,\"reason\":\"Back Soon, Maybe\",\"body\":\"{\\\"ok\\\":false}\"}}}"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {
@@ -1181,7 +1182,7 @@
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":500,\"json\":{\"ok\":false,\"stdout\":\"\",\"stderr\":\"boom\",\"exitCode\":1}}}}"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {
@@ -1195,7 +1196,7 @@
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":400,\"body\":\"\"}}}"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {
@@ -1209,7 +1210,7 @@
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":599,\"reason\":\"Odd\",\"body\":\"x\"}}}"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {
@@ -1575,7 +1576,7 @@
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":410,\"body\":\"no lease for fake-token-0123456789abcdef\"}}}"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {
@@ -1782,6 +1783,7 @@
       "env": {
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"drop\":true}}}"
       },
+      "tty": false,
       "after": [
         "sort -u <ROOT>/requests.log"
       ],
@@ -1812,6 +1814,7 @@
       "env": {
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"raw\":\"HTTP/1.1 200 OK\\r\\nnot a header\\r\\nContent-Length: 2\\r\\n\\r\\n{}\"}}}"
       },
+      "tty": false,
       "after": [
         "sort -u <ROOT>/requests.log"
       ],
@@ -1843,6 +1846,7 @@
         "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
         "http_proxy": "http://127.0.0.1:9"
       },
+      "tty": false,
       "after": [
         "cat <ROOT>/requests.log"
       ],
@@ -2022,7 +2026,7 @@
         "NO_COLOR": "1"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {
@@ -2980,7 +2984,7 @@
         ".env": "WINRPC_TOKEN=fake-token-0123456789abcdef\n"
       },
       "after": [
-        "cat <ROOT>/requests.log"
+        "sort -u <ROOT>/requests.log"
       ]
     },
     {

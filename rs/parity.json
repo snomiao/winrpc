@@ -1,0 +1,3946 @@
+{
+  "env": {
+    "WINRPC_PARITY_LOG": "<ROOT>/requests.log"
+  },
+  "cases": [
+    {
+      "name": "help: --help",
+      "args": [
+        "--help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: serve --help",
+      "args": [
+        "serve",
+        "--help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: lock --help",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: ahk-repl --help",
+      "args": [
+        "ahk-repl",
+        "--help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: tray --help",
+      "args": [
+        "tray",
+        "--help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: ahk-repl --help says WINRPC_URL is set",
+      "args": [
+        "ahk-repl",
+        "--help"
+      ],
+      "env": {
+        "WINRPC_URL": "http://fake-token-0123456789abcdef@127.0.0.1:9"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: ahk-repl --help, WINRPC_URL empty is unset",
+      "args": [
+        "ahk-repl",
+        "--help"
+      ],
+      "env": {
+        "WINRPC_URL": ""
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: ahk-repl --help, WINRPC_URL from .env.local",
+      "args": [
+        "ahk-repl",
+        "--help"
+      ],
+      "files": {
+        ".env.local": "WINRPC_URL=http://fake-token-0123456789abcdef@127.0.0.1:9\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: a token that is a word of the help is masked in it",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "WINRPC_TOKEN": "Commands"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: a token of seven characters is not masked",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "WINRPC_TOKEN": "Options"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: the password of WINRPC_URL is masked in it",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "env": {
+        "WINRPC_URL": "http://who:Positionals@127.0.0.1:9"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: a token padded with spaces is masked trimmed",
+      "args": [
+        "tray",
+        "--help"
+      ],
+      "env": {
+        "WINRPC_TOKEN": "  system-tray \t"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with LANG=en_US.UTF-8",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LANG": "en_US.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: lock --help with LANG=en_US.UTF-8",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "env": {
+        "LANG": "en_US.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with LANG=en_GB.UTF-8",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LANG": "en_GB.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: lock --help with LANG=en_GB.UTF-8",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "env": {
+        "LANG": "en_GB.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with LANG=C.UTF-8",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LANG": "C.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: lock --help with LANG=C.UTF-8",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "env": {
+        "LANG": "C.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with LC_ALL=POSIX",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LC_ALL": "POSIX",
+        "LANG": "de_DE.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: lock --help with LC_ALL=POSIX",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "env": {
+        "LC_ALL": "POSIX",
+        "LANG": "de_DE.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with LC_MESSAGES=en and LANG=fr_FR",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LC_MESSAGES": "en",
+        "LANG": "fr_FR.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: lock --help with LC_MESSAGES=en and LANG=fr_FR",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "env": {
+        "LC_MESSAGES": "en",
+        "LANG": "fr_FR.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with an empty LC_ALL, LANG=en_US",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LC_ALL": "",
+        "LANG": "en_US.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: lock --help with an empty LC_ALL, LANG=en_US",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "env": {
+        "LC_ALL": "",
+        "LANG": "en_US.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with LANGUAGE=en_US:de",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LANGUAGE": "en_US:de"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: lock --help with LANGUAGE=en_US:de",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "env": {
+        "LANGUAGE": "en_US:de"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with LANG=de_DE.UTF-8",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LANG": "de_DE.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs speaks German (its locales/de.json)"
+    },
+    {
+      "name": "help: --help with LC_ALL=ja_JP.UTF-8 over LANG=en_US",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LC_ALL": "ja_JP.UTF-8",
+        "LANG": "en_US.UTF-8"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs speaks Japanese"
+    },
+    {
+      "name": "help: --help with LANGUAGE=fr",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LANGUAGE": "fr"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs speaks French"
+    },
+    {
+      "name": "help: --help with LC_MESSAGES=pirate",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LC_MESSAGES": "pirate"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs speaks pirate"
+    },
+    {
+      "name": "help: --help with LANG=xx_YY",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "LANG": "xx_YY"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a locale yargs has no file for is not imitated"
+    },
+    {
+      "name": "help: --help with HOST=0.0.0.0 and PORT=12371",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "HOST": "0.0.0.0",
+        "PORT": "12371"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with HOST set",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "HOST": "127.0.0.1"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "the default of --host comes from HOST"
+    },
+    {
+      "name": "help: serve --help with PORT set",
+      "args": [
+        "serve",
+        "--help"
+      ],
+      "env": {
+        "PORT": "8080"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "the default of --port comes from PORT"
+    },
+    {
+      "name": "help: tray --help with PORT not a number",
+      "args": [
+        "tray",
+        "--help"
+      ],
+      "env": {
+        "PORT": "x"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "the default of --port comes from PORT (NaN)"
+    },
+    {
+      "name": "help: tray --help with HOST set",
+      "args": [
+        "tray",
+        "--help"
+      ],
+      "env": {
+        "HOST": "127.0.0.1"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: lock --help with HOST and PORT set",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "env": {
+        "HOST": "127.0.0.1",
+        "PORT": "8080"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: --help with HOST in .env",
+      "args": [
+        "--help"
+      ],
+      "files": {
+        ".env": "HOST=127.0.0.1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "the default of --host comes from HOST"
+    },
+    {
+      "name": "help: YARGS_DISABLE_WRAP",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "YARGS_DISABLE_WRAP": "1"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs does not wrap"
+    },
+    {
+      "name": "help: stdout is a terminal",
+      "args": [
+        "--help"
+      ],
+      "tty": "stdout",
+      "skip": {
+        "win32": "no terminal on Windows (the runner's pseudo-terminal needs Linux or macOS)"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs wraps at the terminal's width"
+    },
+    {
+      "name": "help: stderr is a terminal",
+      "args": [
+        "lock",
+        "--help"
+      ],
+      "tty": "stderr",
+      "skip": {
+        "win32": "no terminal on Windows (the runner's pseudo-terminal needs Linux or macOS)"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "help: -h",
+      "args": [
+        "-h"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "help: help",
+      "args": [
+        "help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "help: lock help",
+      "args": [
+        "lock",
+        "help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "help: lock show --help",
+      "args": [
+        "lock",
+        "show",
+        "--help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "help: --help twice",
+      "args": [
+        "--help",
+        "--help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "help: --version",
+      "args": [
+        "--version"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "help: --help of an unknown command",
+      "args": [
+        "frobnicate",
+        "--help"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "bun: --help with BUN_OPTIONS",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "BUN_OPTIONS": "--no-env-file"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "BUN_OPTIONS changes how bun starts"
+    },
+    {
+      "name": "bun: --help with NODE_OPTIONS",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "NODE_OPTIONS": "--no-warnings"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "NODE_OPTIONS changes how bun starts"
+    },
+    {
+      "name": "bun: --help with NODE_ENV",
+      "args": [
+        "--help"
+      ],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "NODE_ENV changes which .env files bun reads"
+    },
+    {
+      "name": "bun: --help with bunfig.toml here",
+      "args": [
+        "--help"
+      ],
+      "files": {
+        "bunfig.toml": "telemetry = false\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "bunfig.toml changes what bun does before the program starts"
+    },
+    {
+      "name": "bun: --help with ~/.bunfig.toml",
+      "args": [
+        "--help"
+      ],
+      "setup": [
+        "echo 'telemetry = false' > <HOME>/.bunfig.toml"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "bunfig.toml changes what bun does before the program starts"
+    },
+    {
+      "name": "bun: --help with a package.json bun may complain about",
+      "args": [
+        "--help"
+      ],
+      "files": {
+        "package.json": "{bad"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a package.json in a shape not compared with bun"
+    },
+    {
+      "name": "bun: --help with a tsconfig.json with extends",
+      "args": [
+        "--help"
+      ],
+      "files": {
+        "tsconfig.json": "{\"extends\": \"./base.json\"}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a tsconfig.json in a shape not compared with bun"
+    },
+    {
+      "name": "bun: --help with a plain package.json",
+      "args": [
+        "--help"
+      ],
+      "files": {
+        "package.json": "{\"name\": \"x\", \"type\": \"module\"}\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun: --help with a plain tsconfig.json with comments",
+      "args": [
+        "--help"
+      ],
+      "files": {
+        "tsconfig.json": "// c\n{\"compilerOptions\": {\"strict\": true,},}\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun: --help with a package.json above the directory",
+      "args": [
+        "--help"
+      ],
+      "setup": [
+        "echo '{bad' > ../package.json"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a package.json in a shape not compared with bun"
+    },
+    {
+      "name": "lock: unlocked",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock show: held by a lease",
+      "args": [
+        "lock",
+        "show",
+        "--url=http://MOCKHOST/"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":true,\"holder\":\"lease:flow-a\",\"pid\":4242,\"host\":\"WINBOX\",\"expiresIn\":119873,\"lease\":{\"owner\":\"flow-a\",\"label\":\"file picker\",\"acquired_at\":\"2026-11-27T10:00:00.000Z\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: held by a running request",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST",
+        "show"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":true,\"holder\":\"ahk-eval\",\"pid\":4242,\"host\":\"WINBOX\",\"expiresIn\":59000,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: the token in the URL is sent as a Bearer token",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: WINRPC_TOKEN is sent when the URL has none",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "WINRPC_TOKEN": "fake-token-0123456789abcdef-env"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: WINRPC_TOKEN is sent untrimmed inside",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "WINRPC_TOKEN": "fake token with spaces"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: the URL's token wins over WINRPC_TOKEN",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "WINRPC_TOKEN": "fake-other-token-value"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a password in the URL is not sent",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef:fake-password@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a password alone in the URL, WINRPC_TOKEN sent",
+      "args": [
+        "lock",
+        "--url",
+        "http://:fake-password@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "WINRPC_TOKEN": "fake-token-0123456789abcdef"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: an empty user part",
+      "args": [
+        "lock",
+        "--url",
+        "http://@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: WINRPC_URL",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":true,\"holder\":\"lease:flow-a\",\"pid\":4242,\"host\":\"WINBOX\",\"expiresIn\":119873,\"lease\":{\"owner\":\"flow-a\",\"label\":\"file picker\",\"acquired_at\":\"2026-11-27T10:00:00.000Z\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}}",
+        "WINRPC_URL": "http://fake-token-0123456789abcdef@MOCKHOST"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: --url wins over WINRPC_URL",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "WINRPC_URL": "http://fake-not-this@127.0.0.1:9"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: WINRPC_LEASE is sent",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":true,\"holder\":\"lease:flow-a\",\"pid\":4242,\"host\":\"WINBOX\",\"expiresIn\":119873,\"lease\":{\"owner\":\"flow-a\",\"label\":\"file picker\",\"acquired_at\":\"2026-11-27T10:00:00.000Z\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}}",
+        "WINRPC_LEASE": "0123456789abcdef0123456789abcdef"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: an empty WINRPC_LEASE is not sent",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "WINRPC_LEASE": ""
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock show: a lease argument is not sent",
+      "args": [
+        "lock",
+        "show",
+        "my-lease",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: options of acquire are taken and not used",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST",
+        "--owner",
+        "me",
+        "--label",
+        "x",
+        "--ttl",
+        "30",
+        "--wait=1.5"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a path in the URL",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST/winrpc/"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /winrpc/lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a path in the URL without a slash at the end",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST/a/b"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /a/b/lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: two slashes at the end",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST//"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET //lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}},\"GET /lock\":{\"status\":200,\"json\":{\"locked\":true,\"holder\":\"ahk-eval\",\"pid\":4242,\"host\":\"WINBOX\",\"expiresIn\":59000,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "bun's fetch asks for /lock where the URL says //lock"
+    },
+    {
+      "name": "lock: two slashes inside the path",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST/a//b"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /a//b/lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "an empty path segment is not imitated"
+    },
+    {
+      "name": "lock: upper-case scheme and host",
+      "args": [
+        "lock",
+        "--url",
+        "HTTP://LOCALHOST:MOCKPORT"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: localhost",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@localhost:MOCKPORT/"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a port with leading zeros",
+      "args": [
+        "lock",
+        "--url",
+        "http://127.0.0.1:0MOCKPORT"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: localhost, the server on ::1 only",
+      "args": [
+        "lock",
+        "--url",
+        "http://localhost:MOCKPORT"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}},\"listen\":\"::1\"}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: no server",
+      "args": [
+        "lock",
+        "--url",
+        "http://127.0.0.1:9"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: no server, the URL's token masked",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@127.0.0.1:9"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: no server, WINRPC_URL",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_URL": "http://fake-token-0123456789abcdef@localhost:9/x/"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 401",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":401,\"body\":\"Unauthorized — include access token in URL: http://<token>@host:port\",\"headers\":[[\"Content-Type\",\"text/plain;charset=utf-8\"],[\"WWW-Authenticate\",\"Basic realm=\\\"winrpc\\\"\"]]}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 404 of another server",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":404,\"body\":\"<html><body>Not Found</body></html>\\n\",\"headers\":[[\"Content-Type\",\"text/html\"]]}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 410 with JSON",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":410,\"json\":{\"ok\":false,\"error\":\"no such lease (expired or released)\"}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a reason phrase of its own",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":503,\"reason\":\"Back Soon, Maybe\",\"body\":\"{\\\"ok\\\":false}\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 500 as onError writes it",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":500,\"json\":{\"ok\":false,\"stdout\":\"\",\"stderr\":\"boom\",\"exitCode\":1}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 400 with an empty body",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":400,\"body\":\"\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 599",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":599,\"reason\":\"Odd\",\"body\":\"x\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 423 lease held",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":{\"ok\":false,\"error\":\"ui lease held\",\"holder\":\"flow-a\",\"label\":\"file picker\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 423 without a label",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":{\"ok\":false,\"error\":\"ui lease held\",\"holder\":\"flow-a\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 423 with an empty label",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":{\"ok\":false,\"error\":\"ui lease held\",\"holder\":\"flow-a\",\"label\":\"\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 423 that is not JSON",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"body\":\"locked\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 423 with odd values",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":{\"holder\":7,\"label\":[],\"expires_at\":[1,null,\"a\",[2]]}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 423 with objects",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":{\"holder\":{},\"label\":{\"a\":1},\"expires_at\":null}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 423 with zero and false",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":{\"holder\":false,\"label\":0,\"expires_at\":true}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 423 with an array",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":[{\"ok\":false,\"error\":\"ui lease held\",\"holder\":\"flow-a\",\"label\":\"file picker\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}]}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 423 is written as it is, the token too",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":{\"ok\":false,\"error\":\"ui lease held\",\"holder\":\"lease:fake-token-0123456789abcdef\",\"label\":\"file picker\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}",
+        "WINRPC_TOKEN": "fake-token-0123456789abcdef"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 200 that is not JSON",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"hello\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 200 with an empty body",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 200 with JSON and something after it",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"{} x\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 204",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":204}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: 201",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":201,\"json\":{\"created\":true}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: chunked",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"chunks\":[\"{\\\"locked\\\":\",\"false,\",\"\\\"lease\\\":null}\"]}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: no length, the connection closed",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"close\":true,\"body\":\"{\\\"locked\\\":true,\\\"holder\\\":\\\"lease:flow-a\\\",\\\"pid\\\":4242,\\\"host\\\":\\\"WINBOX\\\",\\\"expiresIn\\\":119873,\\\"lease\\\":{\\\"owner\\\":\\\"flow-a\\\",\\\"label\\\":\\\"file picker\\\",\\\"acquired_at\\\":\\\"2026-11-27T10:00:00.000Z\\\",\\\"expires_at\\\":\\\"2026-11-27T10:02:00.000Z\\\"}}\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: HTTP/1.0",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"raw\":\"HTTP/1.0 200 OK\\r\\nContent-Type: application/json\\r\\n\\r\\n{\\\"locked\\\":true,\\\"holder\\\":\\\"ahk-eval\\\",\\\"pid\\\":4242,\\\"host\\\":\\\"WINBOX\\\",\\\"expiresIn\\\":59000,\\\"lease\\\":null}\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: JSON of every kind",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"{\\\"s\\\":\\\"a\\\\\\\"b\\\\\\\\c\\\\/d\\\\b\\\\f\\\\n\\\\r\\\\t\\\\u0001\\\\u001f\\\\u007f\\\\u2028\\\\u00e9é😀\\\",\\\"n\\\":[0,-0,1,-1,1.0,1e3,-2E2,9007199254740992,9007199254740993,1e400,-1e999],\\\"b\\\":[true,false,null],\\\"e\\\":[[],{}],\\\"nested\\\":{\\\"a\\\":[{\\\"b\\\":[[1]]}]}}\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: keys as JavaScript orders them",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"{\\\"b\\\":1,\\\"a\\\":2,\\\"10\\\":3,\\\"2\\\":4,\\\"01\\\":5,\\\"-1\\\":6,\\\"4294967294\\\":7,\\\"4294967295\\\":8,\\\"b\\\":9,\\\"__proto__\\\":10,\\\"toString\\\":11}\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: whitespace around JSON",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\" \\t\\r\\n [ 1 , \\\"x\\\" ] \\n\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a string as the answer",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"\\\"just text\\\"\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: null as the answer",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"null\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: not quite JSON",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"{\\\"a\\\":1,}\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a control character in a string is not JSON",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"{\\\"a\\\":\\\"x\\ty\\\"}\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: the token in the answer is masked",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"echo\":\"Bearer fake-token-0123456789abcdef\",\"url\":\"http://fake-token-0123456789abcdef@winbox:12371/x\"}}}}",
+        "WINRPC_TOKEN": "fake-token-0123456789abcdef"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: the token in an error is masked",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":410,\"body\":\"no lease for fake-token-0123456789abcdef\"}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a user part of another URL in the answer is masked",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"see\":\"ftp://anon@files.example/x\"}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a token shorter than eight characters is not masked",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"echo\":\"fake123\"}}}}",
+        "WINRPC_TOKEN": "fake123"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: the longest secret is masked first",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-user:fake-user-long@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"a\":\"fake-user-long fake-user\"}}}}",
+        "WINRPC_URL": "http://fake-user:fake-user-long@127.0.0.1:9"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a redirect",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":302,\"headers\":[[\"Location\",\"/moved/lock\"]]},\"GET /moved/lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "fetch follows redirects; the binary does not"
+    },
+    {
+      "name": "lock: a Content-Encoding",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null},\"headers\":[[\"Content-Encoding\",\"identity\"]]}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "fetch decompresses; the binary does not"
+    },
+    {
+      "name": "lock: an empty reason phrase",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"raw\":\"HTTP/1.1 500 \\r\\nContent-Length: 1\\r\\n\\r\\nx\"}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "how bun reads an odd status line is not imitated"
+    },
+    {
+      "name": "lock: no reason phrase",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"raw\":\"HTTP/1.1 500\\r\\nContent-Length: 1\\r\\n\\r\\nx\"}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "how bun reads an odd status line is not imitated"
+    },
+    {
+      "name": "lock: a status of 600",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"raw\":\"HTTP/1.1 600 Odd\\r\\nContent-Length: 1\\r\\n\\r\\nx\"}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "a status outside 200-599 is not imitated"
+    },
+    {
+      "name": "lock: a fraction in the answer",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":true,\"holder\":\"ahk-eval\",\"pid\":4242,\"host\":\"WINBOX\",\"expiresIn\":59000.5,\"lease\":null}}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "JavaScript's number formatting is not ported beyond integers"
+    },
+    {
+      "name": "lock: an integer beyond 2^53",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"{\\\"n\\\":18014398509481985}\"}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "JavaScript's number formatting is not ported beyond integers"
+    },
+    {
+      "name": "lock: a lone surrogate",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"{\\\"s\\\":\\\"\\\\ud800\\\"}\"}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "a string with half a surrogate pair is not held"
+    },
+    {
+      "name": "lock: a byte order mark",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"body\":\"﻿{}\"}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "whether fetch drops a byte order mark is not imitated"
+    },
+    {
+      "name": "lock: 423 with a holder JavaScript cannot print",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":{\"holder\":{\"toString\":\"x\"}}}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "String() throws, and yargs reports it"
+    },
+    {
+      "name": "lock: the connection is closed without an answer",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"drop\":true}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "a failed fetch is reported in bun's words"
+    },
+    {
+      "name": "lock: a body shorter than its length",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"raw\":\"HTTP/1.1 200 OK\\r\\nContent-Length: 10\\r\\n\\r\\n{}\"}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "a failed fetch is reported in bun's words"
+    },
+    {
+      "name": "lock: a header line that is not one",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"raw\":\"HTTP/1.1 200 OK\\r\\nnot a header\\r\\nContent-Length: 2\\r\\n\\r\\n{}\"}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "how bun reads an odd header is not imitated"
+    },
+    {
+      "name": "lock: a 1xx before the answer",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"raw\":\"HTTP/1.1 100 Continue\\r\\n\\r\\nHTTP/1.1 200 OK\\r\\nContent-Length: 2\\r\\n\\r\\n{}\"}}}"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "an interim answer is not imitated"
+    },
+    {
+      "name": "lock: http_proxy",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "http_proxy": "http://127.0.0.1:9"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "fetch may go through a proxy"
+    },
+    {
+      "name": "lock: HTTPS_PROXY",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "HTTPS_PROXY": "http://127.0.0.1:9"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "fetch may go through a proxy"
+    },
+    {
+      "name": "lock: NO_PROXY",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "NO_PROXY": "*"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "fetch may go through a proxy"
+    },
+    {
+      "name": "lock: an https URL",
+      "args": [
+        "lock",
+        "--url",
+        "https://127.0.0.1:9"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "no TLS in the binary"
+    },
+    {
+      "name": "lock: a token with a space at the end",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "WINRPC_TOKEN": "fake-token "
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "fetch trims a header value"
+    },
+    {
+      "name": "lock: a lease with a tab",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "WINRPC_LEASE": "a\tb"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "fetch checks a header value"
+    },
+    {
+      "name": "lock: a 200 to a terminal",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":true,\"holder\":\"lease:flow-a\",\"pid\":4242,\"host\":\"WINBOX\",\"expiresIn\":119873,\"lease\":{\"owner\":\"flow-a\",\"label\":\"file picker\",\"acquired_at\":\"2026-11-27T10:00:00.000Z\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}}"
+      },
+      "tty": "stdout",
+      "skip": {
+        "win32": "no terminal on Windows (the runner's pseudo-terminal needs Linux or macOS)"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a 410 to a terminal",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":410,\"json\":{\"ok\":false,\"error\":\"no such lease (expired or released)\"}}}}"
+      },
+      "tty": "stderr",
+      "skip": {
+        "win32": "no terminal on Windows (the runner's pseudo-terminal needs Linux or macOS)"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "bun colours console.error on a terminal"
+    },
+    {
+      "name": "lock: a 423 to a terminal",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":423,\"json\":{\"ok\":false,\"error\":\"ui lease held\",\"holder\":\"flow-a\",\"label\":\"file picker\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}"
+      },
+      "tty": "stderr",
+      "skip": {
+        "win32": "no terminal on Windows (the runner's pseudo-terminal needs Linux or macOS)"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: FORCE_COLOR and a 200",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}",
+        "FORCE_COLOR": "1"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: FORCE_COLOR and a 410",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":410,\"json\":{\"ok\":false,\"error\":\"no such lease (expired or released)\"}}}}",
+        "FORCE_COLOR": "1"
+      },
+      "after": [
+        "sort -u <ROOT>/requests.log"
+      ],
+      "handback": "bun colours console.error under FORCE_COLOR"
+    },
+    {
+      "name": "lock: NO_COLOR and a 410",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":410,\"json\":{\"ok\":false,\"error\":\"no such lease (expired or released)\"}}}}",
+        "NO_COLOR": "1"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: no URL",
+      "args": [
+        "lock"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: an empty WINRPC_URL",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_URL": ""
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: not a URL",
+      "args": [
+        "lock",
+        "--url=notaurl"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: not a URL, with spaces",
+      "args": [
+        "lock",
+        "--url",
+        "my winrpc"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: WINRPC_URL host:port, which is a URL of the scheme host",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_URL": "winbox:12371"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "URLs other than http are not imitated"
+    },
+    {
+      "name": "lock: WINRPC_URL without a scheme",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_URL": "192.0.2.1/x"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: an unclosed [ in the host, the token masked",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@[bad"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: http:// alone",
+      "args": [
+        "lock",
+        "--url",
+        "http://"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: no host after the user",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake-token-0123456789abcdef@"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a port and no host",
+      "args": [
+        "lock",
+        "--url",
+        "http://:12371"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a port out of range",
+      "args": [
+        "lock",
+        "--url",
+        "http://127.0.0.1:65536"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a port that is not a number",
+      "args": [
+        "lock",
+        "--url",
+        "http://127.0.0.1:12a"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: a token given as the URL is masked; an invalid WINRPC_URL adds no secret",
+      "args": [
+        "lock",
+        "--url",
+        "fake-nope-token"
+      ],
+      "env": {
+        "WINRPC_URL": "http://fake-user-of-a-bad-url@[",
+        "WINRPC_TOKEN": "fake-nope-token"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: an ftp URL",
+      "args": [
+        "lock",
+        "--url",
+        "ftp://127.0.0.1:9"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "URLs other than http are not imitated"
+    },
+    {
+      "name": "lock: http: without slashes",
+      "args": [
+        "lock",
+        "--url",
+        "http:127.0.0.1:9"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "URLs other than http://host are not imitated"
+    },
+    {
+      "name": "lock: a shortened IPv4 address",
+      "args": [
+        "lock",
+        "--url",
+        "http://127.1:9"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "IPv4 addresses of other spellings are not imitated"
+    },
+    {
+      "name": "lock: an IPv6 address",
+      "args": [
+        "lock",
+        "--url",
+        "http://[::1]:9"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "IPv6 hosts are not imitated"
+    },
+    {
+      "name": "lock: a percent escape in the token",
+      "args": [
+        "lock",
+        "--url",
+        "http://fake%2Dtoken@127.0.0.1:9"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "percent escapes are not imitated"
+    },
+    {
+      "name": "lock: a dot segment in the path",
+      "args": [
+        "lock",
+        "--url",
+        "http://127.0.0.1:9/a/../b"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "dot segments are not imitated"
+    },
+    {
+      "name": "lock: a query in the URL",
+      "args": [
+        "lock",
+        "--url",
+        "http://127.0.0.1:9/?x=1"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a query is not imitated"
+    },
+    {
+      "name": "lock acquire: no --owner",
+      "args": [
+        "lock",
+        "acquire",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock acquire: no --owner, a label",
+      "args": [
+        "lock",
+        "acquire",
+        "--label",
+        "x",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock acquire: no URL comes first",
+      "args": [
+        "lock",
+        "acquire"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock acquire: an invalid URL comes first",
+      "args": [
+        "lock",
+        "acquire",
+        "--url",
+        "nope"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock renew: no lease",
+      "args": [
+        "lock",
+        "renew",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock release: no lease",
+      "args": [
+        "lock",
+        "release",
+        "--ttl",
+        "5",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock renew: an empty WINRPC_LEASE",
+      "args": [
+        "lock",
+        "renew",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_LEASE": ""
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock release: no lease, no URL",
+      "args": [
+        "lock",
+        "release"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "ahk-repl: no URL",
+      "args": [
+        "ahk-repl"
+      ],
+      "stdin": "MsgBox 1\n",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "ahk-repl: no URL, a lease",
+      "args": [
+        "ahk-repl",
+        "--lease",
+        "abc"
+      ],
+      "stdin": "MsgBox 1\n",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "ahk-repl: not a URL",
+      "args": [
+        "ahk-repl",
+        "nope"
+      ],
+      "stdin": "MsgBox 1\n",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "ahk-repl: an empty WINRPC_URL",
+      "args": [
+        "ahk-repl"
+      ],
+      "env": {
+        "WINRPC_URL": ""
+      },
+      "stdin": "MsgBox 1\n",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock acquire: --owner",
+      "args": [
+        "lock",
+        "acquire",
+        "--owner",
+        "flow-a",
+        "--url",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /lock/acquire\":{\"status\":200,\"json\":{\"ok\":true,\"lease\":\"0123456789abcdef0123456789abcdef\",\"owner\":\"flow-a\",\"label\":\"file picker\",\"acquired_at\":\"2026-11-27T10:00:00.000Z\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a request that changes something is sent by the JavaScript"
+    },
+    {
+      "name": "lock acquire: every option",
+      "args": [
+        "lock",
+        "acquire",
+        "--owner=flow-a",
+        "--label",
+        "file picker",
+        "--ttl",
+        "90",
+        "--wait",
+        "2.5",
+        "--url",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /lock/acquire\":{\"status\":200,\"json\":{\"ok\":true,\"lease\":\"0123456789abcdef0123456789abcdef\",\"owner\":\"flow-a\",\"label\":\"file picker\",\"acquired_at\":\"2026-11-27T10:00:00.000Z\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a request that changes something is sent by the JavaScript"
+    },
+    {
+      "name": "lock acquire: 423",
+      "args": [
+        "lock",
+        "acquire",
+        "--owner",
+        "flow-b",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /lock/acquire\":{\"status\":423,\"json\":{\"ok\":false,\"error\":\"ui lease held\",\"holder\":\"flow-a\",\"label\":\"file picker\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a request that changes something is sent by the JavaScript"
+    },
+    {
+      "name": "lock renew: a lease",
+      "args": [
+        "lock",
+        "renew",
+        "0123456789abcdef0123456789abcdef",
+        "--ttl",
+        "60",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /lock/renew\":{\"status\":200,\"json\":{\"ok\":true,\"owner\":\"flow-a\",\"label\":\"file picker\",\"acquired_at\":\"2026-11-27T10:00:00.000Z\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a request that changes something is sent by the JavaScript"
+    },
+    {
+      "name": "lock renew: 410",
+      "args": [
+        "lock",
+        "renew",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /lock/renew\":{\"status\":410,\"json\":{\"ok\":false,\"error\":\"no such lease (expired or released)\"}}}}",
+        "WINRPC_LEASE": "fffffffffffffffffffffffffffffff0"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a request that changes something is sent by the JavaScript"
+    },
+    {
+      "name": "lock release: WINRPC_LEASE",
+      "args": [
+        "lock",
+        "release",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /lock/release\":{\"status\":200,\"json\":{\"ok\":true}}}}",
+        "WINRPC_LEASE": "0123456789abcdef0123456789abcdef"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a request that changes something is sent by the JavaScript"
+    },
+    {
+      "name": "ahk-repl: lines through a pipe",
+      "args": [
+        "ahk-repl",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /ahk-eval\":{\"status\":200,\"json\":{\"ok\":true,\"stdout\":\"done\",\"stderr\":\"\",\"exitCode\":0}}}}"
+      },
+      "stdin": "MsgBox 1\n\n  WinGetTitle  \n",
+      "after": [
+        "sort <ROOT>/requests.log"
+      ],
+      "handback": "a request that changes something is sent by the JavaScript"
+    },
+    {
+      "name": "ahk-repl: the lease",
+      "args": [
+        "ahk-repl",
+        "--lease",
+        "0123456789abcdef0123456789abcdef",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /ahk-eval\":{\"status\":200,\"json\":{\"ok\":true,\"stdout\":\"done\",\"stderr\":\"\",\"exitCode\":0}}}}"
+      },
+      "stdin": "MsgBox 1\n",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a request that changes something is sent by the JavaScript"
+    },
+    {
+      "name": "ahk-repl: 423",
+      "args": [
+        "ahk-repl",
+        "http://fake-token-0123456789abcdef@MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /ahk-eval\":{\"status\":423,\"json\":{\"ok\":false,\"error\":\"ui lease held\",\"holder\":\"flow-a\",\"label\":\"file picker\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}"
+      },
+      "stdin": "MsgBox 1\n",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a request that changes something is sent by the JavaScript"
+    },
+    {
+      "name": "ahk-repl: an empty stdin",
+      "args": [
+        "ahk-repl",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"POST /ahk-eval\":{\"status\":200,\"json\":{\"ok\":true,\"stdout\":\"done\",\"stderr\":\"\",\"exitCode\":0}}}}"
+      },
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "ahk-repl with a URL reads stdin"
+    },
+    {
+      "name": "yargs: serve with an unknown option",
+      "args": [
+        "serve",
+        "--bogus"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: tray with an unknown option",
+      "args": [
+        "tray",
+        "--bogus"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: an unknown option alone",
+      "args": [
+        "--bogus"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: an unknown command",
+      "args": [
+        "frobnicate"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: lock with an unknown action",
+      "args": [
+        "lock",
+        "frob"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: lock with an unknown option",
+      "args": [
+        "lock",
+        "--bogus",
+        "1"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: lock --url without a value",
+      "args": [
+        "lock",
+        "--url"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: lock --url twice",
+      "args": [
+        "lock",
+        "--url",
+        "http://127.0.0.1:9",
+        "--url",
+        "http://127.0.0.1:9"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: lock with three positionals",
+      "args": [
+        "lock",
+        "show",
+        "a",
+        "b"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: lock --ttl that is not a number",
+      "args": [
+        "lock",
+        "--ttl",
+        "abc"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: lock -- show",
+      "args": [
+        "lock",
+        "--",
+        "show"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: ahk-repl with two URLs",
+      "args": [
+        "ahk-repl",
+        "http://127.0.0.1:9",
+        "http://127.0.0.1:9"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "yargs: ahk-repl --url",
+      "args": [
+        "ahk-repl",
+        "--url",
+        "http://127.0.0.1:9"
+      ],
+      "stdin": "",
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "yargs's own reading of the command line"
+    },
+    {
+      "name": "bun env: WINRPC_URL in .env",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env": "WINRPC_URL=from-env-file\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: in .env.local",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.local": "WINRPC_URL=from-local\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: in .env.development",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "WINRPC_URL=from-development\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: in .env.development.local",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development.local": "WINRPC_URL=from-development-local\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: .env.production is not read",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.production": "WINRPC_URL=from-production\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: .env.test is not read",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.test": "WINRPC_URL=from-test\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: .env.development.local wins",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env": "WINRPC_URL=from-env-file\n",
+        ".env.development": "WINRPC_URL=from-development\n",
+        ".env.local": "WINRPC_URL=from-local\n",
+        ".env.development.local": "WINRPC_URL=from-development-local\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: .env.local wins over .env.development and .env",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env": "WINRPC_URL=from-env-file\n",
+        ".env.development": "WINRPC_URL=from-development\n",
+        ".env.local": "WINRPC_URL=from-local\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: .env.development wins over .env",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env": "WINRPC_URL=from-env-file\n",
+        ".env.development": "WINRPC_URL=from-development\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: the real environment wins",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_URL": "from-the-environment"
+      },
+      "files": {
+        ".env": "WINRPC_URL=from-env-file\n",
+        ".env.development": "WINRPC_URL=from-development\n",
+        ".env.local": "WINRPC_URL=from-local\n",
+        ".env.development.local": "WINRPC_URL=from-development-local\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a variable set to nothing in the real environment stays so",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_URL": ""
+      },
+      "files": {
+        ".env": "WINRPC_URL=from-env-file\n",
+        ".env.development": "WINRPC_URL=from-development\n",
+        ".env.local": "WINRPC_URL=from-local\n",
+        ".env.development.local": "WINRPC_URL=from-development-local\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: --url wins over the files",
+      "args": [
+        "lock",
+        "--url",
+        "from-the-flag"
+      ],
+      "files": {
+        ".env": "WINRPC_URL=from-env-file\n",
+        ".env.development": "WINRPC_URL=from-development\n",
+        ".env.local": "WINRPC_URL=from-local\n",
+        ".env.development.local": "WINRPC_URL=from-development-local\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: files in the parent directory are not read",
+      "args": [
+        "lock"
+      ],
+      "files": {},
+      "setup": [
+        "echo WINRPC_URL=from-parent > ../.env.local"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: the token and the URL from .env.local",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":true,\"holder\":\"lease:flow-a\",\"pid\":4242,\"host\":\"WINBOX\",\"expiresIn\":119873,\"lease\":{\"owner\":\"flow-a\",\"label\":\"file picker\",\"acquired_at\":\"2026-11-27T10:00:00.000Z\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}}"
+      },
+      "files": {
+        ".env.local": "WINRPC_URL=http://MOCKHOST\nWINRPC_TOKEN=fake-token-0123456789abcdef\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: the URL with its token from .env.local, as the banner says",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":false,\"lease\":null}}}}"
+      },
+      "files": {
+        ".env.local": "WINRPC_URL=http://fake-token-0123456789abcdef@MOCKHOST\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: WINRPC_LEASE from .env",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":200,\"json\":{\"locked\":true,\"holder\":\"lease:flow-a\",\"pid\":4242,\"host\":\"WINBOX\",\"expiresIn\":119873,\"lease\":{\"owner\":\"flow-a\",\"label\":\"file picker\",\"acquired_at\":\"2026-11-27T10:00:00.000Z\",\"expires_at\":\"2026-11-27T10:02:00.000Z\"}}}}}"
+      },
+      "files": {
+        ".env": "WINRPC_LEASE=0123456789abcdef0123456789abcdef\n",
+        ".env.local": "WINRPC_URL=http://fake-token-0123456789abcdef@MOCKHOST\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: WINRPC_TOKEN from .env masks the token in what is printed",
+      "args": [
+        "lock",
+        "--url",
+        "http://MOCKHOST"
+      ],
+      "env": {
+        "WINRPC_PARITY_MOCK": "{\"routes\":{\"GET /lock\":{\"status\":410,\"body\":\"no lease for fake-token-0123456789abcdef\"}}}"
+      },
+      "files": {
+        ".env": "WINRPC_TOKEN=fake-token-0123456789abcdef\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a bare value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=dir/keys.txt\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a bare value, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=dir/keys.txt\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: spaces around a bare value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL= \t dir/k \t \nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: spaces around a bare value, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL= \t dir/k \t \r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a bare value with a space inside",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=my url\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a bare value with a space inside, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=my url\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a comment after a bare value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=dir/k # the url\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a comment after a bare value, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=dir/k # the url\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a # glued to a bare value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=dir/k#not-part\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a # glued to a bare value, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=dir/k#not-part\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: an empty value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: an empty value, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: only a comment as value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL= # nothing\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: only a comment as value, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL= # nothing\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"my url/k #1\"\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=\"my url/k #1\"\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes, padded inside",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\" k \"\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes, padded inside, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=\" k \"\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes and a comment",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"k\" # c\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes and a comment, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=\"k\" # c\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes and a glued comment",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"k\"#c\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes and a glued comment, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=\"k\"#c\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a single quote inside double quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"it's\"\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a single quote inside double quotes, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=\"it's\"\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a backtick inside double quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"a`b\"\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a backtick inside double quotes, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=\"a`b\"\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: single quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL='my url/k #1'\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: single quotes, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL='my url/k #1'\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes inside single quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL='{\"a\":1}'\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: double quotes inside single quotes, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL='{\"a\":1}'\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a backtick inside single quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL='a`b'\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a backtick inside single quotes, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL='a`b'\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: empty double quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"\"\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: empty double quotes, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=\"\"\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: empty single quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=''\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: empty single quotes, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=''\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: an equals sign in the value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=a=b\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: an equals sign in the value, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=a=b\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a backslash in a bare value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=a\\b\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a backslash in a bare value, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=a\\b\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: letters beyond ASCII",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=clés→鍵\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: letters beyond ASCII, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=clés→鍵\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a tab before the quote",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\t\"k\"\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a tab before the quote, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=\t\"k\"\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: the same name twice: the last wins",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=k1\nT_OTHER=1\nWINRPC_URL=k2\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: the same name twice: the last wins, CRLF",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\r\n\r\nWINRPC_URL=k1\nT_OTHER=1\nWINRPC_URL=k2\r\nT_AFTER=1\r\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a $ in a bare value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=a$b\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "bun expands $b"
+    },
+    {
+      "name": "bun env: a $ at the end",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=cost$\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a $ is where bun starts to expand"
+    },
+    {
+      "name": "bun env: ${…} in double quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"${HOME}/k\"\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "bun expands ${HOME}"
+    },
+    {
+      "name": "bun env: a $ in single quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL='a$b'\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "bun expands even in single quotes"
+    },
+    {
+      "name": "bun env: an escape in double quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"a\\nb\"\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "bun unescapes \\n"
+    },
+    {
+      "name": "bun env: a backslash in single quotes",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL='a\\nb'\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "backslashes in quotes are not imitated"
+    },
+    {
+      "name": "bun env: a value over two lines",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"a\nb\"\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "values over several lines are not imitated"
+    },
+    {
+      "name": "bun env: no closing quote",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"a\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "an open quote is not imitated"
+    },
+    {
+      "name": "bun env: backticks",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=`k`\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "backtick quoting is not imitated"
+    },
+    {
+      "name": "bun env: a quote inside a bare value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=it's\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "quotes inside a bare value are not imitated"
+    },
+    {
+      "name": "bun env: text after the closing quote",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=\"a\"b\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "text after a closing quote is not imitated"
+    },
+    {
+      "name": "bun env: a quote in the comment",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=k # it's\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "quotes in a comment are not imitated"
+    },
+    {
+      "name": "bun env: a tab inside a bare value",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL=a\tb\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "control characters in a value are not imitated"
+    },
+    {
+      "name": "bun env: export",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nexport WINRPC_URL=k\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "export is not imitated"
+    },
+    {
+      "name": "bun env: an indented line",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\n  WINRPC_URL=k\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "indentation is not imitated"
+    },
+    {
+      "name": "bun env: a space before the equals sign",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL =k\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "spaces before = are not imitated"
+    },
+    {
+      "name": "bun env: a line without an equals sign",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nWINRPC_URL\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a line without = is not imitated"
+    },
+    {
+      "name": "bun env: a name with a dot",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nA.B=1\nWINRPC_URL=k\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "names with . or - are not imitated"
+    },
+    {
+      "name": "bun env: a byte order mark",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\n﻿WINRPC_URL=k\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a byte order mark is not imitated"
+    },
+    {
+      "name": "bun env: a lone carriage return",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nA=1\rWINRPC_URL=k\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a lone carriage return is not imitated"
+    },
+    {
+      "name": "bun env: a variable for bun",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nBUN_CONFIG_VERBOSE_FETCH=1\nWINRPC_URL=k\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "variables that steer bun are not imitated"
+    },
+    {
+      "name": "bun env: a proxy in the file",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nHTTP_PROXY=http://127.0.0.1:9\nWINRPC_URL=k\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "variables that steer fetch are not imitated"
+    },
+    {
+      "name": "bun env: LANG in the file",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# comment\n\nLANG=de_DE.UTF-8\nWINRPC_URL=k\nT_AFTER=1\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "variables that steer yargs are not imitated"
+    },
+    {
+      "name": "bun env: no newline at the end",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "WINRPC_URL=k"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: an empty file",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": ""
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: comments and blank lines only",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "# a\n\n   \n\t\n#b"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: a file that is not UTF-8",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.development": "WINRPC_URL=k\n"
+      },
+      "setup": [
+        "printf 'A=\\377\\n' >> .env.development"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a .env file that is not UTF-8 is not imitated"
+    },
+    {
+      "name": "bun env: a .env that is a directory",
+      "args": [
+        "lock"
+      ],
+      "files": {},
+      "setup": [
+        "mkdir .env.development"
+      ],
+      "after": [
+        "cat <ROOT>/requests.log"
+      ],
+      "handback": "a .env that is not a file is not imitated"
+    },
+    {
+      "name": "bun env: a .env that is a symlink is read",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        "elsewhere": "WINRPC_URL=from-link\n"
+      },
+      "setup": [
+        "ln -s elsewhere .env.development"
+      ],
+      "skip": {
+        "win32": "Git Bash's ln copies the file instead of linking it"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "lock: winrpc_url in lower case",
+      "args": [
+        "lock"
+      ],
+      "env": {
+        "winrpc_url": "lower-case-name"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    },
+    {
+      "name": "bun env: winrpc_url in lower case in .env.local",
+      "args": [
+        "lock"
+      ],
+      "files": {
+        ".env.local": "winrpc_url=lower-case-name\n"
+      },
+      "after": [
+        "cat <ROOT>/requests.log"
+      ]
+    }
+  ]
+}

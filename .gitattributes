@@ -1,0 +1,5 @@
+# The crate, its cases and its scripts stay LF in every checkout, Windows
+# included: the parity scripts run in Git Bash, which stops at a CR, and
+# rs/parity.json is checked byte for byte against what rs/parity.gen.mjs
+# writes.
+rs/** text=auto eol=lf

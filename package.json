@@ -17,5 +17,12 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/yargs": "^17.0.35"
+  },
+  "rustify": {
+    "mode": "hybrid",
+    "bins": {
+      "winrpc": "winrpc"
+    },
+    "rootEnv": "WINRPC_PACKAGE_ROOT"
   }
 }

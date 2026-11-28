@@ -158,6 +158,8 @@ add("lock: two slashes at the end", ["lock", "--url", "http://MOCKHOST//"], { mo
 add("lock: two slashes inside the path", ["lock", "--url", "http://MOCKHOST/a//b"], { mock: { routes: { "GET /a//b/lock": { status: 200, json: UNLOCKED } } }, back: "an empty path segment is not imitated" });
 add("lock: upper-case scheme and host", ["lock", "--url", "HTTP://LOCALHOST:MOCKPORT"], { mock: ok(UNLOCKED) });
 add("lock: localhost", ["lock", "--url", `http://${FAKE}@localhost:MOCKPORT/`], { mock: ok(UNLOCKED) });
+// The banner says `winrpc listening on http://0.0.0.0:<port>`.
+add("lock: the host 0.0.0.0", ["lock", "--url", `http://${FAKE}@0.0.0.0:MOCKPORT`], { mock: ok(LEASED) });
 add("lock: a port with leading zeros", ["lock", "--url", "http://127.0.0.1:0MOCKPORT"], { mock: ok(UNLOCKED) });
 const REFUSED = "a failed connection is reported in bun's words (ConnectionRefused on Linux, ECONNREFUSED on macOS)";
 add("lock: localhost, the server on ::1 only", ["lock", "--url", "http://localhost:MOCKPORT"], { mock: { ...ok(UNLOCKED), listen: "::1" }, tty: ADDRESS_SHOWN, back: REFUSED });

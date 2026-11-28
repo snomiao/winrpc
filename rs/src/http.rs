@@ -7,15 +7,21 @@
 //! JavaScript makes it again and answers in its own way. The binary does
 //! not follow a redirect, does not decompress (it asks for nothing but
 //! sends no Accept-Encoding, so a server that keeps to HTTP sends none) and
-//! does not do TLS; it does not resolve names: `localhost` is 127.0.0.1
-//! (bun 1.4 on Linux takes it so; on macOS it reaches a server on ::1
-//! alone, where the binary is refused and hands back); and it goes back for:
+//! does not do TLS; it does not resolve names. `localhost` is where bun
+//! goes for it (measured with a server on ::1 and another on 127.0.0.1,
+//! the same port): on Linux 127.0.0.1 alone (bun 1.4.0 is refused where
+//! only ::1 listens); on macOS (bun 1.4.4) and Windows (bun 1.4.2) ::1
+//! first, and 127.0.0.1 when ::1 refuses. That holds for the hosts file
+//! these systems come with (see `localhost`); another goes back. And it
+//! goes back for:
 //!
 //! - a host that is not a canonical IPv4 address or `localhost`, an https
 //!   URL, or a proxy in the environment (see `Machine::proxy_set`);
 //! - a connection that fails (refused too: bun names that in words of its
-//!   own, which differ by system), or that is closed or stalls (30 s) before
-//!   a whole answer has arrived;
+//!   own, which differ by system), that takes more than 30 s, or that is
+//!   closed or stalls (30 s) before a whole answer has arrived. bun waits
+//!   longer: a server that answers after 30 s gets the GET twice, and the
+//!   user waits for both;
 //! - a status line other than `HTTP/1.x <3 digits> <reason>`, a status
 //!   outside 200-599 or a 3xx; a reason phrase that is empty or not plain
 //!   printable ASCII;
@@ -25,8 +31,8 @@
 //!   not a number, a body shorter than its Content-Length, a chunk size
 //!   that is not plain hex, chunk extensions or trailers.
 
-use std::io::{Read, Write};
-use std::net::{Ipv4Addr, SocketAddr, TcpStream};
+use std::io::{ErrorKind, Read, Write};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream};
 use std::time::Duration;
 
 use crate::url::Url;
@@ -42,20 +48,74 @@ pub struct Response {
 const WAIT: Duration = Duration::from_secs(30);
 const MAX_HEAD: usize = 64 * 1024;
 
-fn address(url: &Url) -> Result<SocketAddr, HandBack> {
+/// The addresses bun tries for the URL's host, in its order.
+fn addresses(url: &Url) -> Result<Vec<SocketAddr>, HandBack> {
     if url.scheme != "http" {
         return Err(HandBack);
     }
-    let ip: Ipv4Addr = if url.host == "localhost" { Ipv4Addr::LOCALHOST } else { url.host.parse().map_err(|_| HandBack)? };
-    Ok(SocketAddr::from((ip, url.port_or_default())))
+    let ips: Vec<IpAddr> = if url.host == "localhost" { localhost(&hosts_file()?)? } else { vec![IpAddr::V4(url.host.parse::<Ipv4Addr>().map_err(|_| HandBack)?)] };
+    Ok(ips.into_iter().map(|ip| SocketAddr::new(ip, url.port_or_default())).collect())
+}
+
+/// The hosts file, `None` where there is none.
+fn hosts_file() -> Result<Option<String>, HandBack> {
+    let path = if cfg!(windows) {
+        let root = std::env::var_os("SystemRoot").ok_or(HandBack)?;
+        std::path::Path::new(&root).join("System32").join("drivers").join("etc").join("hosts")
+    } else {
+        std::path::PathBuf::from("/etc/hosts")
+    };
+    match std::fs::read(&path) {
+        Ok(bytes) => String::from_utf8(bytes).map(Some).map_err(|_| HandBack),
+        Err(err) if err.kind() == ErrorKind::NotFound => Ok(None),
+        Err(_) => Err(HandBack),
+    }
+}
+
+/// Where bun goes for `localhost`, for a hosts file of the shape each
+/// system comes with: Linux names 127.0.0.1 (and ::1) for it, macOS both,
+/// Windows neither (its resolver answers for localhost itself). Any other
+/// shape goes back.
+fn localhost(hosts: &Option<String>) -> Result<Vec<IpAddr>, HandBack> {
+    let mut named: Vec<&str> = Vec::new();
+    for line in hosts.as_deref().unwrap_or("").lines() {
+        let line = line.split('#').next().unwrap_or("");
+        let mut words = line.split_ascii_whitespace();
+        let Some(address) = words.next() else { continue };
+        if words.any(|name| name.eq_ignore_ascii_case("localhost")) && !named.contains(&address) {
+            named.push(address);
+        }
+    }
+    let only = |wanted: &[&str]| named.len() == wanted.len() && wanted.iter().all(|address| named.contains(address));
+    let (v4, v6) = (IpAddr::V4(Ipv4Addr::LOCALHOST), IpAddr::V6(Ipv6Addr::LOCALHOST));
+    if cfg!(target_os = "linux") && hosts.is_some() && (only(&["127.0.0.1"]) || only(&["127.0.0.1", "::1"])) {
+        Ok(vec![v4])
+    } else if (cfg!(target_os = "macos") && only(&["127.0.0.1", "::1"])) || (cfg!(windows) && named.is_empty()) {
+        Ok(vec![v6, v4])
+    } else {
+        Err(HandBack)
+    }
+}
+
+/// A connection to the first address that takes one. One that is refused
+/// moves on to the next; one that takes too long, or none at all, goes
+/// back.
+fn connect(addresses: &[SocketAddr]) -> Result<TcpStream, HandBack> {
+    for address in addresses {
+        match TcpStream::connect_timeout(address, WAIT) {
+            Ok(stream) => return Ok(stream),
+            Err(err) if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock => return Err(HandBack),
+            Err(_) => continue,
+        }
+    }
+    Err(HandBack)
 }
 
 /// `GET <base><path>` with these headers. A connection that fails, refused
 /// too, goes back: bun reports it in words of its own that differ by system
 /// (ConnectionRefused on Linux, ECONNREFUSED on macOS, bun 1.4).
 pub fn get(url: &Url, target: &str, headers: &[(&str, String)]) -> Result<Response, HandBack> {
-    let address = address(url)?;
-    let mut stream = TcpStream::connect_timeout(&address, WAIT).map_err(|_| HandBack)?;
+    let mut stream = connect(&addresses(url)?)?;
     stream.set_read_timeout(Some(WAIT)).map_err(|_| HandBack)?;
     stream.set_write_timeout(Some(WAIT)).map_err(|_| HandBack)?;
     let host = match url.port {
@@ -240,6 +300,37 @@ pub fn read_response(stream: &mut dyn Read) -> Result<Response, HandBack> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn where_localhost_goes() {
+        let hosts = |text: &str| localhost(&Some(text.to_string()));
+        let (v4, v6) = (IpAddr::V4(Ipv4Addr::LOCALHOST), IpAddr::V6(Ipv6Addr::LOCALHOST));
+        let linux = "127.0.0.1\tlocalhost\n::1\tlocalhost ip6-localhost ip6-loopback\n";
+        let macos = "##\n# localhost is used to configure the loopback interface\n127.0.0.1\tlocalhost\n255.255.255.255\tbroadcasthost\n::1             localhost\n";
+        let windows = "# localhost name resolution is handled within DNS itself.\n#\t127.0.0.1       localhost\n#\t::1             localhost\n127.0.0.1 webcode.localhost\n";
+        let odd = ["127.0.1.1 localhost\n127.0.0.1 localhost\n", "::1 localhost\n", "127.0.0.1 localhost\n::1 localhost\nfe80::1%lo0 localhost\n", "10.0.0.1 LocalHost\n"];
+        if cfg!(target_os = "linux") {
+            assert_eq!(hosts(linux), Ok(vec![v4]));
+            assert_eq!(hosts(macos), Ok(vec![v4]));
+            assert_eq!(hosts("127.0.0.1 localhost # x\n"), Ok(vec![v4]));
+            assert_eq!(localhost(&None), Err(HandBack));
+            assert_eq!(hosts(windows), Err(HandBack));
+        }
+        if cfg!(target_os = "macos") {
+            assert_eq!(hosts(macos), Ok(vec![v6, v4]));
+            assert_eq!(hosts(linux), Ok(vec![v6, v4]));
+            assert_eq!(hosts("127.0.0.1 localhost\n"), Err(HandBack));
+            assert_eq!(localhost(&None), Err(HandBack));
+        }
+        if cfg!(windows) {
+            assert_eq!(hosts(windows), Ok(vec![v6, v4]));
+            assert_eq!(localhost(&None), Ok(vec![v6, v4]));
+            assert_eq!(hosts(linux), Err(HandBack));
+        }
+        for text in odd {
+            assert_eq!(hosts(text), Err(HandBack), "{text:?}");
+        }
+    }
 
     fn read(raw: &str) -> Result<(u16, String, String), HandBack> {
         let mut bytes = raw.as_bytes();

@@ -187,7 +187,7 @@ mod os {
     }
 
     #[cfg(not(target_os = "linux"))]
-    fn socket(_fd: i32, _before: usize) -> Option<usize> {
+    fn socket(_fd: i32, _before: usize, _writes: usize) -> Option<usize> {
         None
     }
 

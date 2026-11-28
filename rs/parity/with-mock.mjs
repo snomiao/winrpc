@@ -20,7 +20,20 @@
 // What the stand-in answers comes from WINRPC_PARITY_MOCK, a JSON object:
 //
 //   { "routes": { "GET /lock": <reply>, "POST /lock/acquire": <reply>, ... },
-//     "listen": "127.0.0.1" }          // or "::1"
+//     "listen": "127.0.0.1",           // or "::1", or "both": one stand-in
+//                                      // on each, the same port, the one on
+//                                      // ::1 answering from "routes6"
+//     "files": true,                   // optional, see below
+//     "pipe": { "stream": "stdout", "fill": 0 } }  // optional
+//
+// The command's standard output and standard error are pipes of this
+// wrapper's (on Linux and macOS, node makes them Unix sockets). With
+// "files" they are regular files instead, read when the command has ended.
+// With "pipe", the one stream named is a real pipe, with `fill` bytes
+// waiting in it first (not shown), that is read only once the command has
+// ended, or after 10 s for a command that waits for its reader: how bun
+// loses what a pipe has no room for (rs/src/room.rs), whatever the speed
+// of the machine. That runs the command through sh.
 //
 // A reply is answered every time its route is asked for (the binary may
 // hand a GET back to the JavaScript, which then asks again), and is one of
@@ -30,11 +43,16 @@
 //   { "close": true, "body": "..." }                 no length, then closed
 //   { "raw": "HTTP/1.1 200 OK\r\n..." }              these bytes as they are
 //   { "drop": true }                                 closed without an answer
-// A route that is not listed is answered 404 (text naming it).
+// A route that is not listed is answered 404 (text naming it). A text
+// "<x*1000>" in a reply's json or body, or as all of a string in it, stands
+// for x written 1000 times: a large answer without a large variable (Linux
+// takes 128 KiB at most, Windows 32,767 characters).
+
 //
 // The requests go to WINRPC_PARITY_LOG (default $TMPDIR/requests.log), one
 // line each: method and target, then the headers a winrpc server reads
-// (host, authorization, x-winrpc-lease, content-type), then the body. A
+// (host, authorization, x-winrpc-lease, content-type), then the body; with
+// "listen": "both", first the address that was asked (v4 or v6). A
 // token is written as it is only when it is one of the cases' made-up ones
 // (it says "fake"). Neither variable reaches the command.
 
@@ -51,7 +69,6 @@ if (!program) {
 }
 
 const scenario = JSON.parse(process.env.WINRPC_PARITY_MOCK || "{}");
-const routes = scenario.routes || {};
 const listen = scenario.listen || "127.0.0.1";
 const logFile = process.env.WINRPC_PARITY_LOG || path.join(process.env.TMPDIR || os.tmpdir(), "requests.log");
 const REASONS = { 200: "OK", 204: "No Content", 302: "Found", 400: "Bad Request", 401: "Unauthorized", 404: "Not Found", 410: "Gone", 423: "Locked", 500: "Internal Server Error", 503: "Service Unavailable" };
@@ -63,8 +80,17 @@ function shownToken(value) {
   return /fake/.test(value) && value.length <= 80 ? value : `(not a parity token, ${value.length} characters)`;
 }
 
-function reply(socket, route) {
-  const r = routes[route] ?? { status: 404, body: `parity mock: no route for ${route}` };
+const REPEAT = /<(.)\*(\d+)>/g;
+const expand = (value) => {
+  if (typeof value === "string") return value.replace(REPEAT, (_, text, times) => text.repeat(Number(times)));
+  if (Array.isArray(value)) return value.map(expand);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, expand(v)]));
+  return value;
+};
+
+function reply(socket, routes, route) {
+  const given = routes[route] ?? { status: 404, body: `parity mock: no route for ${route}` };
+  const r = { ...given, json: expand(given.json), body: expand(given.body) };
   if (r.drop) return socket.destroy();
   if (r.raw !== undefined) return socket.end(Buffer.from(r.raw, "utf8"));
   const status = r.status ?? 200;
@@ -88,7 +114,7 @@ function reply(socket, route) {
   socket.end(Buffer.concat([Buffer.from(head, "utf8"), payload]));
 }
 
-const server = net.createServer((socket) => {
+const standIn = (via, routes) => net.createServer((socket) => {
   socket.on("error", () => {});
   let buffer = Buffer.alloc(0);
   let done = false;
@@ -109,6 +135,7 @@ const server = net.createServer((socket) => {
     done = true;
     const body = buffer.subarray(end + 4, end + 4 + length).toString("utf8");
     lines.push([
+      ...(via ? [via] : []),
       `${method} ${target}`,
       `host: ${headers.host ?? "(none)"}`,
       `authorization: ${shownToken(headers.authorization)}`,
@@ -116,12 +143,54 @@ const server = net.createServer((socket) => {
       `content-type: ${headers["content-type"] ?? "(none)"}`,
       body,
     ].join("\t"));
-    reply(socket, `${method} ${target}`);
+    reply(socket, routes, `${method} ${target}`);
   });
 });
 
-server.listen(0, listen, () => {
-  const { port } = server.address();
+// One stand-in, or one on 127.0.0.1 and one on ::1 on the same port (taken
+// again when ::1 has that port in use already).
+function start(then, tries = 20) {
+  if (listen !== "both") {
+    const server = standIn(null, scenario.routes || {});
+    return server.listen(0, listen, () => then(server.address().port));
+  }
+  const v4 = standIn("v4", scenario.routes || {});
+  v4.listen(0, "127.0.0.1", () => {
+    const { port } = v4.address();
+    const v6 = standIn("v6", scenario.routes6 || scenario.routes || {});
+    v6.once("error", (error) => {
+      v4.close();
+      if (tries > 1) return start(then, tries - 1);
+      console.error(`with-mock: no port free on both 127.0.0.1 and ::1: ${error.message}`);
+      process.exit(127);
+    });
+    v6.listen(port, "::1", () => then(port));
+  });
+}
+
+// The command, as it is, or (`pipe`) behind sh with a real pipe on one
+// stream. sh reads its command line by its own rules on Windows (Git
+// Bash), and is told to leave the arguments as they are.
+function command(env) {
+  const pipe = scenario.pipe;
+  if (!pipe) return { file: program, args: programArgs, env, code: null };
+  const fill = Number(pipe.fill || 0);
+  const code = path.join(os.tmpdir(), `with-mock-${process.pid}.code`);
+  const put = fill ? `head -c ${fill} /dev/zero | tr '\\0' x; ` : "";
+  const reader = `{ i=0; while [ ! -s "$c" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done; tail -c +${fill + 1}`;
+  const run = 'c=$WINRPC_PARITY_CODE; unset WINRPC_PARITY_CODE; ';
+  const script = pipe.stream === "stderr"
+    ? `${run}exec 3>&1; { ${put}"$@" 2>&1 1>&3 3>&-; echo $? > "$c"; } | ${reader} >&2; }`
+    : `${run}{ ${put}"$@"; echo $? > "$c"; } | ${reader}; }`;
+  return {
+    file: "sh",
+    args: ["-c", script, "sh", program, ...programArgs],
+    env: { ...env, WINRPC_PARITY_CODE: code, MSYS2_ARG_CONV_EXCL: "*", MSYS_NO_PATHCONV: "1" },
+    code,
+  };
+}
+
+start((port) => {
   const address = listen === "::1" ? `[::1]:${port}` : `127.0.0.1:${port}`;
   const fill = (text) => text.replaceAll("MOCKHOST", address).replaceAll("MOCKPORT", String(port));
   const unfill = (buffer) => {
@@ -141,17 +210,33 @@ server.listen(0, listen, () => {
     env[key] = fill(value);
   }
   const piped = [process.stdout, process.stderr].map((stream) => !stream.isTTY);
-  const child = spawn(program, programArgs.map(fill), {
-    stdio: ["inherit", piped[0] ? "pipe" : "inherit", piped[1] ? "pipe" : "inherit"],
-    env,
+  const files = piped.map((p, n) => (p && scenario.files ? path.join(os.tmpdir(), `with-mock-${process.pid}.${n + 1}`) : null));
+  const fds = files.map((file) => (file ? fs.openSync(file, "w") : null));
+  const run = command(env);
+  const child = spawn(run.file, run.args.map(fill), {
+    stdio: ["inherit", ...[0, 1].map((n) => fds[n] ?? (piped[n] ? "pipe" : "inherit"))],
+    env: run.env,
   });
+  for (const fd of fds) if (fd !== null) fs.closeSync(fd);
   const out = [[], []];
-  if (piped[0]) child.stdout.on("data", (d) => out[0].push(d));
-  if (piped[1]) child.stderr.on("data", (d) => out[1].push(d));
+  if (piped[0] && !files[0]) child.stdout.on("data", (d) => out[0].push(d));
+  if (piped[1] && !files[1]) child.stderr.on("data", (d) => out[1].push(d));
   let finished = false;
-  const finish = (code) => {
+  const finish = (exited) => {
     if (finished) return;
     finished = true;
+    files.forEach((file, n) => {
+      if (!file) return;
+      out[n].push(fs.readFileSync(file));
+      fs.rmSync(file, { force: true });
+    });
+    // Behind sh: the command's own exit code, which sh wrote down.
+    let code = exited;
+    if (run.code) {
+      const written = fs.existsSync(run.code) ? fs.readFileSync(run.code, "utf8").trim() : "";
+      if (/^\d+$/.test(written)) code = Number(written);
+      fs.rmSync(run.code, { force: true });
+    }
     fs.writeFileSync(logFile, lines.length ? `${lines.map((l) => unfill(Buffer.from(l, "utf8")).toString("utf8")).join("\n")}\n` : "(no requests)\n");
     const flush = (stream, chunks, then) => (chunks.length ? stream.write(unfill(Buffer.concat(chunks)), then) : then());
     flush(process.stdout, out[0], () => flush(process.stderr, out[1], () => process.exit(code)));
